@@ -55,13 +55,6 @@ func uvxBinaryName() string {
 	return "uvx"
 }
 
-func uvBinaryName() string {
-	if runtime.GOOS == "windows" {
-		return "uv.exe"
-	}
-	return "uv"
-}
-
 func ensureCached(cacheDir string) error {
 	if err := os.MkdirAll(cacheDir, 0755); err != nil {
 		return fmt.Errorf("failed to create cache directory %s: %w", cacheDir, err)

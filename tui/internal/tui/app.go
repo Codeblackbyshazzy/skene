@@ -171,7 +171,7 @@ type App struct {
 // NewApp creates a new wizard application
 func NewApp() *App {
 	configMgr := config.NewManager(".")
-	configMgr.LoadConfig()
+	_ = configMgr.LoadConfig()
 
 	// Set default values if not present
 	if configMgr.Config.OutputDir == "" {
@@ -302,7 +302,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.authCountdown = int(msg)
 		if a.authCountdown <= 0 {
 			if a.authView != nil {
-				browser.OpenURL(a.authView.GetAuthURL())
+				_ = browser.OpenURL(a.authView.GetAuthURL())
 				a.authView.SetAuthState(views.AuthStateWaiting)
 			}
 		} else if a.authView != nil {
@@ -858,7 +858,7 @@ func (a *App) handleNextStepsKeys(key string) tea.Cmd {
 				projectDir, _ = os.Getwd()
 			}
 			outputDir := filepath.Join(projectDir, constants.OutputDirName)
-			browser.OpenURL(outputDir)
+			_ = browser.OpenURL(outputDir)
 		}
 	case "esc":
 		a.refreshResultsView()

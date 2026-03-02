@@ -22,7 +22,6 @@ type CallbackResult struct {
 type CallbackServer struct {
 	port     int
 	server   *http.Server
-	result   *CallbackResult
 	resultCh chan CallbackResult
 	mu       sync.Mutex
 	done     bool
@@ -102,7 +101,7 @@ func (cs *CallbackServer) Shutdown() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	cs.server.Shutdown(ctx)
+	_ = cs.server.Shutdown(ctx)
 }
 
 // handleCallback processes the callback from the external auth website.

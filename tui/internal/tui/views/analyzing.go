@@ -131,7 +131,6 @@ func (v *AnalyzingView) UpdatePhaseByName(phaseName string, progress float64, me
 			Done:     progress >= 1.0,
 		})
 		phaseIdx = len(v.phases) - 1
-		phase = &v.phases[phaseIdx]
 	} else {
 		// Update existing phase
 		phase.Progress = progress

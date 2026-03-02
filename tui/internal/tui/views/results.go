@@ -116,14 +116,14 @@ func (v *ResultsView) HandleRight() {
 // HandleUp scrolls content up
 func (v *ResultsView) HandleUp() {
 	if v.focus == ResultsFocusContent {
-		v.viewport.LineUp(3)
+		v.viewport.ScrollUp(3)
 	}
 }
 
 // HandleDown scrolls content down
 func (v *ResultsView) HandleDown() {
 	if v.focus == ResultsFocusContent {
-		v.viewport.LineDown(3)
+		v.viewport.ScrollDown(3)
 	}
 }
 
