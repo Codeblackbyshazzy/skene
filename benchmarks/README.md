@@ -49,10 +49,29 @@ API keys are read from environment variables specified by `api_key_env` — neve
 uv run benchmarks/run.py [OPTIONS]
 
 Options:
-  --config PATH      Path to TOML config file (default: benchmarks/config.toml)
-  --skip-judge       Skip LLM-as-judge evaluation (recommended for now)
-  --evaluate-only    Re-evaluate existing results (not yet implemented)
+  --config PATH          Path to TOML config file (default: benchmarks/config.toml)
+  --skip-judge           Skip LLM-as-judge evaluation (recommended for now)
+  --evaluate-only PATH   Re-evaluate existing results directory (skip pipeline, re-run checks and report)
+  --resume PATH          Resume a previous run: re-run only missing benchmarks, skip existing ones
 ```
+
+`--evaluate-only` and `--resume` are mutually exclusive.
+
+### Resuming failed runs
+
+If a benchmark run fails partway (e.g. due to LLM quota limits), you can resume it:
+
+1. Delete the run folders that failed or that you want to re-run:
+   ```bash
+   rm -rf benchmarks/results/<timestamp>/<codebase>/<model>/run-1
+   ```
+2. Resume with the same config:
+   ```bash
+   uv run benchmarks/run.py --resume benchmarks/results/<timestamp> \
+       --config benchmarks/run-config.toml --skip-judge
+   ```
+
+Only the deleted runs will re-execute. Runs with an existing `metadata.json` are skipped.
 
 ## Output Structure
 
