@@ -64,7 +64,7 @@ keywords = ["webhook", "integration", "event", "delivery", "payload"]
 [[expected_features]]
 name = "analytics"
 description = "Booking analytics and insights with CSV export, usage tracking, and PostHog integration for product metrics"
-file_patterns = ["features/insights", "analytics"]
+file_patterns = ["features/insights", "tasker/tasks/analytics"]
 keywords = ["analytics", "insights", "tracking", "metrics", "dashboard"]
 
 [[expected_features]]
@@ -82,7 +82,7 @@ keywords = ["feature flag", "feature gate", "rollout", "toggle"]
 [[expected_features]]
 name = "usage-limits"
 description = "Credit-based usage limits for SMS, WhatsApp, and AI phone calls with low balance warnings and quota enforcement"
-file_patterns = ["credits", "credit-service", "CreditBalance"]
+file_patterns = ["credits", "credit-service", "CreditsRepository"]
 keywords = ["credit", "usage", "limit", "quota", "balance", "upgrade"]
 
 [[expected_features]]
@@ -151,6 +151,30 @@ description = "Centralized event type management for organizations with locked f
 file_patterns = ["ee/managed-event-types", "handleChildrenEventTypes", "useLockedFieldsManager"]
 keywords = ["managed", "event type", "locked fields", "reassignment", "centralized"]
 
+[[expected_features]]
+name = "booking-payments"
+description = "Payment collection from attendees at booking time with support for Stripe, PayPal, and other providers, including hold-based and on-booking payment options"
+file_patterns = ["ee/payments", "app-store/stripepayment", "app-store/paypal", "PaymentService"]
+keywords = ["payment", "charge", "pay", "stripe", "paypal", "collect payment", "booking payment"]
+
+[[expected_features]]
+name = "admin-panel"
+description = "Super-admin dashboard with user management, billing administration, feature flag control, organization management, impersonation, OAuth client management, and PBAC role-based access control"
+file_patterns = ["settings/admin", "features/pbac"]
+keywords = ["admin", "dashboard", "management", "super admin", "settings", "rbac", "permissions"]
+
+[[expected_features]]
+name = "audit-logging"
+description = "Booking audit trail system with action-specific services for creation, cancellation, rescheduling, reassignment, no-show, and attendee changes, with DI-based architecture and viewer services"
+file_patterns = ["features/booking-audit", "BookingAuditProducerService", "BookingAuditViewerService"]
+keywords = ["audit", "audit log", "history", "trail", "booking audit", "tracking"]
+
+[[expected_features]]
+name = "rate-limiting"
+description = "Unkey-based rate limiting infrastructure with named namespaces for core API, SMS, instant meetings, and booking endpoints, plus IP ban list enforcement"
+file_patterns = ["rateLimit", "isIpInBanList"]
+keywords = ["rate limit", "throttle", "rate limiting", "abuse", "ban"]
+
 # --- Notable Files ---
 notable_files = [
     "packages/features/ee/billing/credit-service.ts",
@@ -187,4 +211,6 @@ notable_files = [
     "packages/features/ee/impersonation/lib/ImpersonationProvider.ts",
     "packages/features/oauth/services/OAuthService.ts",
     "packages/features/ee/managed-event-types/lib/handleChildrenEventTypes.ts",
+    "packages/features/booking-audit/lib/service/BookingAuditTaskerProducerService.ts",
+    "packages/lib/rateLimit.ts",
 ]

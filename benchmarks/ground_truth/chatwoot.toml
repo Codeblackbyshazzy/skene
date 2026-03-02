@@ -145,6 +145,30 @@ description = "Platform API for programmatic multi-tenant management including a
 file_patterns = ["platform/api", "platform_app", "platform_app_permissible"]
 keywords = ["platform api", "multi-tenant", "account provisioning", "platform app"]
 
+[[expected_features]]
+name = "csat_surveys"
+description = "Customer satisfaction survey system with configurable 1-5 ratings (emoji/star display), feedback messages, conditional sending rules based on labels, WhatsApp/Twilio template integration, public survey submission API, CSV export, and dedicated CSAT reporting dashboard"
+file_patterns = ["csat_survey_response", "csat_survey_controller", "csat_survey_service", "CustomerSatisfaction"]
+keywords = ["csat", "customer satisfaction", "survey", "rating", "feedback"]
+
+[[expected_features]]
+name = "custom_attributes"
+description = "User-defined custom fields for contacts and conversations with multiple data types (text, number, currency, percent, link, date, list, checkbox), CRUD management UI, sidebar display in conversation and contact views, and pre-chat form integration"
+file_patterns = ["custom_attribute_definition", "custom_attribute", "AddAttribute", "ContactCustomAttributes"]
+keywords = ["custom attribute", "custom field", "attribute definition", "metadata"]
+
+[[expected_features]]
+name = "labels"
+description = "Tagging system for conversations and contacts with color-coded labels, sidebar visibility toggle, dedicated CRUD API, conversation/contact/widget-level label assignment, and integration with automation rules, campaign targeting, and CSAT survey rules"
+file_patterns = ["label.rb", "labels_controller", "LabelDropdown", "conversationLabels", "contactLabels"]
+keywords = ["label", "tag", "categorization", "organization"]
+
+[[expected_features]]
+name = "assignment_policies"
+description = "Configurable conversation routing with round-robin assignment, fair distribution limits and time windows, conversation priority strategies (earliest created, longest waiting), inbox-level policy binding, and feature-flagged advanced assignment tier"
+file_patterns = ["assignment_policy", "assignment_policies_controller", "auto_assignment", "AgentAssignmentEditPage"]
+keywords = ["assignment", "routing", "round robin", "fair distribution", "capacity", "auto assign"]
+
 # --- Notable Files ---
 notable_files = [
     "Gemfile",
@@ -217,4 +241,13 @@ notable_files = [
     "config/initializers/rack_attack.rb",
     "app/controllers/platform/api/v1/accounts_controller.rb",
     "app/controllers/platform/api/v1/users_controller.rb",
+    "app/models/csat_survey_response.rb",
+    "app/controllers/api/v1/accounts/csat_survey_responses_controller.rb",
+    "app/services/csat_survey_service.rb",
+    "app/models/custom_attribute_definition.rb",
+    "app/controllers/api/v1/accounts/custom_attribute_definitions_controller.rb",
+    "app/models/label.rb",
+    "app/controllers/api/v1/accounts/labels_controller.rb",
+    "app/models/assignment_policy.rb",
+    "app/controllers/api/v1/accounts/assignment_policies_controller.rb",
 ]
