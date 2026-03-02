@@ -9,7 +9,7 @@ database = "PostgreSQL"
 auth = "Devise"
 deployment = "Docker"
 package_manager = "pnpm"
-services = ["Stripe", "Twilio", "Slack", "Amplitude", "Sentry", "OpenAI", "Shopify"]
+services = ["Stripe", "Twilio", "Slack", "Amplitude", "Sentry", "OpenAI", "Shopify", "Dialogflow", "Linear", "Clearbit"]
 
 # --- Industry Classification ---
 [industry]

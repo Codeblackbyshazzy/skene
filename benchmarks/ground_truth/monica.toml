@@ -45,8 +45,8 @@ keywords = ["onboarding", "setup", "account creation", "welcome"]
 
 [[expected_features]]
 name = "api-tokens"
-description = "Personal API token management with configurable permissions for programmatic access to vaults and contacts via Jetstream"
-file_patterns = ["UserTokenController", "UserToken", "ApiTokenManager"]
+description = "Jetstream/Sanctum personal API token management with configurable read/write permissions for programmatic access to vaults and contacts"
+file_patterns = ["JetstreamServiceProvider", "ApiTokenManager", "config/jetstream.php"]
 keywords = ["api", "token", "personal access token", "api key", "permissions"]
 
 [[expected_features]]
@@ -107,8 +107,9 @@ notable_files = [
     "app/Notifications/ReminderTriggered.php",
     "config/fortify.php",
     "config/webauthn.php",
-    "app/Http/Controllers/Profile/UserTokenController.php",
-    "app/Models/UserToken.php",
+    "app/Providers/JetstreamServiceProvider.php",
+    "config/jetstream.php",
+    "resources/js/Pages/API/Partials/ApiTokenManager.vue",
     "app/Domains/Contact/Dav/Services/ExportVCard.php",
     "app/Domains/Contact/Dav/Services/ImportVCard.php",
     "app/Domains/Contact/Dav/Services/ExportVCalendar.php",

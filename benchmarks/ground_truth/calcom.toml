@@ -64,7 +64,7 @@ keywords = ["webhook", "integration", "event", "delivery", "payload"]
 [[expected_features]]
 name = "analytics"
 description = "Booking analytics and insights with CSV export, usage tracking, and PostHog integration for product metrics"
-file_patterns = ["features/insights", "analytics", "tracking"]
+file_patterns = ["features/insights", "analytics"]
 keywords = ["analytics", "insights", "tracking", "metrics", "dashboard"]
 
 [[expected_features]]
@@ -115,6 +115,42 @@ description = "Trust and safety watchlist system with email/domain blocking, fre
 file_patterns = ["features/watchlist", "WatchlistService", "GlobalBlockingService"]
 keywords = ["watchlist", "blocking", "spam", "abuse", "trust", "safety"]
 
+[[expected_features]]
+name = "sso"
+description = "SAML and OIDC single sign-on for enterprise organizations using BoxyHQ Jackson, with directory provider integration and organization-scoped SSO configuration"
+file_patterns = ["ee/sso", "saml", "jackson"]
+keywords = ["sso", "saml", "single sign-on", "oidc", "enterprise", "jackson"]
+
+[[expected_features]]
+name = "directory-sync"
+description = "SCIM-based directory synchronization for enterprise identity management with automatic user provisioning, group event handling, and attribute mapping from identity providers"
+file_patterns = ["ee/dsync", "handleUserEvents", "handleGroupEvents", "getAttributesFromScimPayload"]
+keywords = ["directory sync", "dsync", "scim", "provisioning", "identity", "directory"]
+
+[[expected_features]]
+name = "routing-forms"
+description = "Dynamic form-based routing to match respondents with the right team member based on configurable attributes, with form response tracking and insights integration"
+file_patterns = ["routing-forms", "PrismaRoutingFormRepository", "handleResponse", "getRoutedUrl"]
+keywords = ["routing", "form", "routing form", "lead routing", "attribute", "response"]
+
+[[expected_features]]
+name = "impersonation"
+description = "Admin user impersonation for support and debugging, allowing authorized users to act as another user within the platform"
+file_patterns = ["ee/impersonation", "ImpersonationProvider"]
+keywords = ["impersonation", "impersonate", "admin", "support", "act as"]
+
+[[expected_features]]
+name = "platform"
+description = "Developer platform with OAuth client management, embeddable React atoms (booker, calendar, event types), and API for third-party integrations to embed Cal.com scheduling"
+file_patterns = ["platform/atoms", "features/oauth", "OAuthService", "CalProvider"]
+keywords = ["platform", "oauth", "atoms", "embed", "sdk", "developer", "third-party"]
+
+[[expected_features]]
+name = "managed-event-types"
+description = "Centralized event type management for organizations with locked field enforcement, child event type propagation, and automated reassignment services"
+file_patterns = ["ee/managed-event-types", "handleChildrenEventTypes", "useLockedFieldsManager"]
+keywords = ["managed", "event type", "locked fields", "reassignment", "centralized"]
+
 # --- Notable Files ---
 notable_files = [
     "packages/features/ee/billing/credit-service.ts",
@@ -143,4 +179,12 @@ notable_files = [
     "apps/web/app/api/user/referrals-token/route.ts",
     "packages/features/watchlist/lib/service/WatchlistService.ts",
     "packages/features/watchlist/lib/service/GlobalBlockingService.ts",
+    "packages/features/ee/sso/lib/jackson.ts",
+    "packages/features/ee/dsync/lib/handleUserEvents.ts",
+    "packages/features/ee/dsync/lib/handleGroupEvents.ts",
+    "packages/features/routing-forms/lib/handleResponse.ts",
+    "packages/features/routing-forms/repositories/PrismaRoutingFormRepository.ts",
+    "packages/features/ee/impersonation/lib/ImpersonationProvider.ts",
+    "packages/features/oauth/services/OAuthService.ts",
+    "packages/features/ee/managed-event-types/lib/handleChildrenEventTypes.ts",
 ]
