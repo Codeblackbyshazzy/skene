@@ -207,6 +207,11 @@ def analyze(
         "--debug",
         help="Log all LLM input/output to .skene-growth/debug/",
     ),
+    no_fallback: bool = typer.Option(
+        False,
+        "--no-fallback",
+        help="Disable model fallback on rate limits; retry same model instead",
+    ),
 ):
     """
     Analyze a codebase and generate growth-manifest.json.
@@ -346,6 +351,7 @@ def analyze(
             resolved_model,
             base_url=resolved_base_url,
             debug=resolved_debug,
+            no_fallback=no_fallback,
         )
 
         if features:
@@ -465,6 +471,12 @@ def plan(
         "-m",
         help="LLM model name (e.g., gemini-3-flash-preview for v1beta API)",
     ),
+    base_url: Optional[str] = typer.Option(
+        None,
+        "--base-url",
+        envvar="SKENE_BASE_URL",
+        help="Base URL for OpenAI-compatible API endpoint (required for generic provider)",
+    ),
     verbose: bool = typer.Option(
         False,
         "-v",
@@ -485,6 +497,11 @@ def plan(
         False,
         "--debug",
         help="Log all LLM input/output to .skene-growth/debug/",
+    ),
+    no_fallback: bool = typer.Option(
+        False,
+        "--no-fallback",
+        help="Disable model fallback on rate limits; retry same model instead",
     ),
 ):
     """
@@ -518,6 +535,7 @@ def plan(
     # Apply config defaults
     resolved_api_key = api_key or config.api_key
     resolved_provider = provider or config.provider
+    resolved_base_url = base_url or config.base_url
     if model:
         resolved_model = model
     else:
@@ -580,7 +598,16 @@ def plan(
         "lm-studio",
         "lm_studio",
         "ollama",
+        "generic",
+        "openai-compatible",
+        "openai_compatible",
     )
+
+    # Generic provider requires base_url
+    if resolved_provider.lower() in ("generic", "openai-compatible", "openai_compatible"):
+        if not resolved_base_url:
+            console.print("[red]Error:[/red] The 'generic' provider requires --base-url to be set.")
+            raise typer.Exit(1)
 
     # If no API key and not using local provider, show sample report
     if not resolved_api_key and not is_local_provider:
@@ -663,6 +690,8 @@ def plan(
             context_dir=context_dir_for_loops,
             user_prompt=prompt,
             debug=resolved_debug,
+            base_url=resolved_base_url,
+            no_fallback=no_fallback,
         )
 
         if memo_content is None:
@@ -677,13 +706,7 @@ def plan(
 
         # Display implementation todo list
         if todo_data:
-            # Handle both old format (2-tuple) and new format (3-tuple)
-            if isinstance(todo_data, tuple) and len(todo_data) == 3:
-                executive_summary, todo_summary, todo_list = todo_data
-            elif isinstance(todo_data, tuple) and len(todo_data) == 2:
-                executive_summary, todo_summary, todo_list = None, todo_data[0], todo_data[1]
-            else:
-                executive_summary, todo_summary, todo_list = None, None, todo_data
+            executive_summary, todo_summary, todo_list = todo_data
 
             if todo_list:
                 console.print("\n")
@@ -757,6 +780,12 @@ def chat(
         "-m",
         help="LLM model name (e.g., gemini-3-flash-preview for v1beta API)",
     ),
+    base_url: Optional[str] = typer.Option(
+        None,
+        "--base-url",
+        envvar="SKENE_BASE_URL",
+        help="Base URL for OpenAI-compatible API endpoint (required for generic provider)",
+    ),
     max_steps: int = typer.Option(
         4,
         "--max-steps",
@@ -786,6 +815,7 @@ def chat(
 
     resolved_api_key = api_key or config.api_key
     resolved_provider = provider or config.provider
+    resolved_base_url = base_url or config.base_url
     if model:
         resolved_model = model
     else:
@@ -796,7 +826,16 @@ def chat(
         "lm-studio",
         "lm_studio",
         "ollama",
+        "generic",
+        "openai-compatible",
+        "openai_compatible",
     )
+
+    # Generic provider requires base_url
+    if resolved_provider.lower() in ("generic", "openai-compatible", "openai_compatible"):
+        if not resolved_base_url:
+            console.print("[red]Error:[/red] The 'generic' provider requires --base-url to be set.")
+            raise typer.Exit(1)
 
     if not resolved_api_key:
         if is_local_provider:
@@ -822,6 +861,7 @@ def chat(
         max_steps=max_steps,
         tool_output_limit=tool_output_limit,
         debug=resolved_debug,
+        base_url=resolved_base_url,
     )
 
 
@@ -1021,15 +1061,17 @@ def status(
 
     register_event_listener(event_listener)
 
-    try:
-        results = validate_all_loops(
+    async def _run_status() -> list:
+        return await validate_all_loops(
             context_dir=context,
             project_root=path,
             llm_client=llm_client,
             find_alternatives=find_alternatives,
         )
+
+    try:
+        results = asyncio.run(_run_status())
     finally:
-        # Clean up event listener
         clear_event_listeners()
 
     console.print()
@@ -1311,10 +1353,27 @@ def build(
         "-m",
         help="LLM model (uses provider default if not provided)",
     ),
+    base_url: Optional[str] = typer.Option(
+        None,
+        "--base-url",
+        envvar="SKENE_BASE_URL",
+        help="Base URL for OpenAI-compatible API endpoint (required for generic provider)",
+    ),
     debug: bool = typer.Option(
         False,
         "--debug",
         help="Log all LLM input/output to .skene-growth/debug/",
+    ),
+    no_fallback: bool = typer.Option(
+        False,
+        "--no-fallback",
+        help="Disable model fallback on rate limits; retry same model instead",
+    ),
+    target: Optional[str] = typer.Option(
+        None,
+        "--target",
+        "-t",
+        help="Where to send the prompt (skip interactive menu). Options: cursor, claude, show, file",
     ),
     feature: Optional[str] = typer.Option(
         None,
@@ -1332,10 +1391,20 @@ def build(
     3. Asks where to send: Cursor, Claude, or Show
     4. Generates implementation prompt with LLM and executes
 
+    Use --target to skip the interactive menu (useful for scripting):
+
+        skene build --target file    # Just save prompt to file, no interaction
+        skene build --target show    # Print prompt to stdout
+        skene build --target cursor  # Open in Cursor
+        skene build --target claude  # Open in Claude
+
     Examples:
 
         # Uses config for LLM, then asks where to send
         skene build
+
+        # Non-interactive: just generate and save the prompt file
+        skene build --target file
 
         # Override LLM settings from config
         skene build --api-key "your-key" --provider gemini
@@ -1349,8 +1418,14 @@ def build(
     Configuration:
         Set api_key and provider in .skene-growth.config or ~/.config/skene-growth/config
     """
+    # Validate --target value if provided
+    valid_targets = {"cursor", "claude", "show", "file"}
+    if target is not None and target not in valid_targets:
+        console.print(f"[red]Error:[/red] Invalid target '{target}'. Valid options: {', '.join(sorted(valid_targets))}")
+        raise typer.Exit(1)
+
     # Run async logic
-    asyncio.run(_build_async(plan, context, api_key, provider, model, debug, feature))
+    asyncio.run(_build_async(plan, context, api_key, provider, model, debug, target, base_url, no_fallback, feature))
 
 
 async def _build_async(
@@ -1360,6 +1435,9 @@ async def _build_async(
     provider: Optional[str],
     model: Optional[str],
     debug: bool = False,
+    target: Optional[str] = None,
+    base_url: Optional[str] = None,
+    no_fallback: Optional[bool] = False,
     bias_feature: Optional[str] = None,
 ):
     """Async implementation of build command."""
@@ -1367,6 +1445,13 @@ async def _build_async(
     config = load_config()
     api_key = api_key or config.api_key
     provider = provider or config.provider
+    base_url = base_url or config.base_url
+
+    # Generic provider requires base_url
+    if provider and provider.lower() in ("generic", "openai-compatible", "openai_compatible"):
+        if not base_url:
+            console.print("[red]Error:[/red] The 'generic' provider requires --base-url to be set.")
+            raise typer.Exit(1)
 
     # Validate LLM configuration
     if not api_key or not provider:
@@ -1421,30 +1506,18 @@ async def _build_async(
         )
         raise typer.Exit(1)
 
-    # Read the plan
-    try:
-        plan_content = plan.read_text()
-    except Exception as e:
-        console.print(f"[red]Error reading plan file:[/red] {e}")
-        raise typer.Exit(1)
-
-    # Extract Technical Execution section
-    technical_execution = extract_technical_execution(plan_content)
+    # Extract Technical Execution section from JSON
+    technical_execution = extract_technical_execution(plan)
 
     if not technical_execution:
         console.print(
             "[red]Error:[/red] Could not extract Technical Execution section from growth plan.\n"
-            "Please ensure your growth plan has a 'TECHNICAL EXECUTION' section with:\n"
-            "  - The Next Build\n"
-            "  - Confidence Score\n"
-            "  - Exact Logic\n"
-            "  - Data Triggers\n"
-            "  - Sequence\n\n"
-            "Generate a proper plan with: [cyan]skene plan[/cyan]\n"
+            "Please ensure a growth-plan.json file exists alongside your growth-plan.md.\n"
+            "Re-generate the plan with: [cyan]skene plan[/cyan]\n"
         )
         raise typer.Exit(1)
 
-    # Create LLM client
+    # Create LLM client and generate prompt
     if model is None:
         model = config.get("model") or default_model_for_provider(provider)
 
@@ -1454,7 +1527,9 @@ async def _build_async(
         from skene_growth.llm import create_llm_client
 
         resolved_debug = debug or config.debug
-        llm = create_llm_client(provider, SecretStr(api_key), model, debug=resolved_debug)
+        llm = create_llm_client(
+            provider, SecretStr(api_key), model, base_url=base_url, debug=resolved_debug, no_fallback=no_fallback
+        )
         console.print("")
         console.print(f"[dim]Using {provider} ({model})[/dim]\n")
     except Exception as e:
@@ -1545,51 +1620,53 @@ async def _build_async(
             console.print(traceback.format_exc())
 
     # 3. Ask build location (where to send the prompt)
-    console.print("[bold cyan]Where do you want to send the implementation prompt?[/bold cyan]")
-    target: str | None = None
-    try:
-        import questionary
+    # If --target was provided, skip the interactive menu
+    if target is None:
+        # Interactive mode: ask where to send the prompt
+        console.print("[bold cyan]Where do you want to send the implementation prompt?[/bold cyan]")
+        try:
+            import questionary
 
-        choices_list = [
-            questionary.Choice("Cursor (open via deep link)", value="cursor"),
-            questionary.Choice("Claude (open in terminal)", value="claude"),
-            questionary.Choice("Show full prompt", value="show"),
-            questionary.Choice("Cancel", value="cancel"),
-        ]
-        selection = questionary.select(
-            "",
-            choices=choices_list,
-            use_arrow_keys=True,
-            use_shortcuts=True,
-            instruction="(Use arrow keys to navigate, Enter to select)",
-        ).ask()
+            choices_list = [
+                questionary.Choice("Cursor (open via deep link)", value="cursor"),
+                questionary.Choice("Claude (open in terminal)", value="claude"),
+                questionary.Choice("Show full prompt", value="show"),
+                questionary.Choice("Cancel", value="cancel"),
+            ]
+            selection = questionary.select(
+                "",
+                choices=choices_list,
+                use_arrow_keys=True,
+                use_shortcuts=True,
+                instruction="(Use arrow keys to navigate, Enter to select)",
+            ).ask()
 
-        if selection == "cancel" or selection is None:
-            console.print("\n[dim]Cancelled.[/dim]")
-            return
-        target = selection
-    except ImportError:
-        choices = [
-            "1. Cursor (open via deep link)",
-            "2. Claude (open in terminal)",
-            "3. Show full prompt",
-            "4. Cancel",
-        ]
-        for choice in choices:
-            console.print(f"  {choice}")
-        console.print()
-        selection = Prompt.ask("Select option", choices=["1", "2", "3", "4"], default="1")
-        if selection == "1":
-            target = "cursor"
-        elif selection == "2":
-            target = "claude"
-        elif selection == "3":
-            target = "show"
-        elif selection == "4":
-            console.print("[dim]Cancelled.[/dim]")
-            return
-        else:
-            target = "cursor"
+            if selection == "cancel" or selection is None:
+                console.print("\n[dim]Cancelled.[/dim]")
+                return
+            target = selection
+        except ImportError:
+            choices = [
+                "1. Cursor (open via deep link)",
+                "2. Claude (open in terminal)",
+                "3. Show full prompt",
+                "4. Cancel",
+            ]
+            for choice in choices:
+                console.print(f"  {choice}")
+            console.print()
+            selection = Prompt.ask("Select option", choices=["1", "2", "3", "4"], default="1")
+            if selection == "1":
+                target = "cursor"
+            elif selection == "2":
+                target = "claude"
+            elif selection == "3":
+                target = "show"
+            elif selection == "4":
+                console.print("[dim]Cancelled.[/dim]")
+                return
+            else:
+                target = "cursor"
 
     # 4. Prompt build
     console.print("\n[dim]Generating implementation prompt...[/dim]\n")
@@ -1606,7 +1683,11 @@ async def _build_async(
     console.print(f"[dim]Prompt saved to: {prompt_file}[/dim]")
 
     # Execute based on target
-    if target == "show":
+    if target == "file":
+        # Non-interactive: just save the prompt file and exit
+        console.print(f"\n[green]✓[/green] Prompt saved to: {prompt_file}")
+
+    elif target == "show":
         console.print("\n")
         console.print(Panel(prompt, title="[bold]Full Prompt[/bold]", border_style="blue", padding=(1, 2)))
         console.print(f"\n[green]✓[/green] Prompt saved to: {prompt_file}")

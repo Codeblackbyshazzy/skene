@@ -1,10 +1,10 @@
 [project]
 name = "skene-growth"
-version = "0.2.0"
+version = "0.2.1"
 description = "PLG analysis toolkit for codebases - analyze code, detect growth opportunities, generate documentation"
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.11"
+requires-python = ">=3.11,<4"
 authors = [
     { name = "Skene Technologies" }
 ]
@@ -33,11 +33,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = [
-    "pytest>=8.0",
-    "pytest-asyncio>=0.23",
-    "ruff>=0.4",
-]
 mcp = [
     "mcp>=1.0.0",
     "xxhash>=3.0",
@@ -53,7 +48,7 @@ skene = "skene_growth.cli.main:skene_entry_point"
 
 [project.urls]
 Homepage = "https://www.skene.ai"
-Documentation = "https://github.com/SkeneTechnologies/skene-growth#readme"
+Documentation = "https://www.skene.ai/resources/docs/skene-growth"
 Repository = "https://github.com/SkeneTechnologies/skene-growth"
 
 [build-system]
@@ -69,9 +64,6 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
-
-[tool.ruff.lint.per-file-ignores]
-"src/skene_growth/planner/planner.py" = ["E501"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

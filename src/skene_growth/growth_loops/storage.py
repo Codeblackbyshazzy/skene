@@ -168,13 +168,14 @@ def generate_timestamped_filename(loop_id: str) -> str:
     Format: YYYYMMDD_HHMMSS_<loop_id>.json
 
     Args:
-        loop_id: Snake_case loop identifier (already sanitized)
+        loop_id: Snake_case loop identifier
 
     Returns:
-        Filename with timestamp prefix
+        Filename with timestamp prefix, suffix truncated to 80 chars
     """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return f"{timestamp}_{loop_id}.json"
+    sanitized_id = sanitize_filename(loop_id, max_length=80)
+    return f"{timestamp}_{sanitized_id}.json"
 
 
 def format_features_for_prompt(features: list[dict[str, Any]]) -> str:
