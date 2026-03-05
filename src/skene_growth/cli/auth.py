@@ -1,9 +1,8 @@
 """
 Upstream authentication for skene push.
 
-Login stores connection info (URL, workspace) per-project in .skene-upstream
-and saves the token securely in ~/.config/skene-growth/credentials keyed
-by workspace slug.
+Login stores connection info (URL, workspace, API key) in .skene-growth.config.
+Logout removes those fields from the same file.
 """
 
 import getpass
@@ -14,86 +13,50 @@ from rich.console import Console
 from rich.table import Table
 
 from skene_growth.config import (
+    find_project_config,
     load_config,
-    load_project_upstream,
     load_toml,
-    remove_project_upstream,
-    remove_workspace_token,
-    resolve_workspace_token,
-    save_project_upstream,
-    save_workspace_token,
+    remove_upstream_from_config,
+    resolve_upstream_api_key_with_source,
+    save_upstream_to_config,
 )
 from skene_growth.growth_loops.upstream import _api_base_from_upstream, _workspace_slug_from_url, validate_token
 
 console = Console()
 
 
-def _upstream_from_project_config() -> str | None:
-    """Read upstream URL from .skene-growth.config. Checks cwd first, then parents."""
-    for path in [Path.cwd() / ".skene-growth.config", *[p / ".skene-growth.config" for p in Path.cwd().parents]]:
-        if path.exists():
-            try:
-                data = load_toml(path)
-                val = data.get("upstream") or data.get("upstream_url")
-                if isinstance(val, str) and val.strip():
-                    return val.strip()
-            except Exception as exc:
-                console.print(f"[dim]Config read failed ({path}): {exc}[/dim]")
-    return None
-
-
-def _api_key_from_project_config() -> str | None:
-    """Read upstream_api_key from .skene-growth.config. Checks cwd first, then parents."""
-    for path in [Path.cwd() / ".skene-growth.config", *[p / ".skene-growth.config" for p in Path.cwd().parents]]:
-        if path.exists():
-            try:
-                data = load_toml(path)
-                val = data.get("upstream_api_key")
-                if isinstance(val, str) and val.strip():
-                    return val.strip()
-            except Exception as exc:
-                console.print(f"[dim]Config read failed ({path}): {exc}[/dim]")
-    return None
-
-
 def cmd_login(upstream_url: str | None = None) -> None:
     """
     Interactive login for upstream push.
 
-    Validates the token via GET /me, saves connection info to .skene-upstream
-    and the token to ~/.config/skene-growth/credentials.
-    Uses upstream and upstream_api_key from config as backup when logged out.
+    Validates the token via GET /me, saves connection info to .skene-growth.config.
     """
     config = load_config()
-    project = load_project_upstream()
 
-    url = (
-        upstream_url
-        or (project.get("upstream") if project else None)
-        or config.upstream
-        or _upstream_from_project_config()
-    )
+    url = upstream_url or config.upstream
     if not url:
         cwd_config = Path.cwd() / ".skene-growth.config"
         hint = ""
         if cwd_config.exists():
-            hint = f"\n[dim]Found {cwd_config} but no 'upstream' key. Add:\n  upstream = \"http://localhost:3000/workspace/your-workspace\"[/dim]"
+            hint = f"\n[dim]Found {cwd_config} but no 'upstream' key.[/dim]"
         else:
             hint = f"\n[dim]No .skene-growth.config in {Path.cwd()} or parent dirs.[/dim]"
+
+        console.print(hint)
         console.print(
+            "\n"
             "[red]Error:[/red] No upstream URL provided.\n"
             "Pass via --upstream or add to .skene-growth.config:\n"
-            '  upstream = "https://skene.ai/workspace/your-workspace"' + hint
+            '  upstream = "https://skene.ai/workspace/your-workspace"\n'
         )
         raise typer.Exit(1)
 
     api_base = _api_base_from_upstream(url)
     workspace = _workspace_slug_from_url(url)
 
-    # Use API key from config as backup when logged out (no .skene-upstream)
     token = None
-    config_api_key = config.upstream_api_key or _api_key_from_project_config()
-    if not project and config_api_key:
+    config_api_key = config.upstream_api_key
+    if config_api_key:
         config_api_key = config_api_key.strip()
         if config_api_key and validate_token(api_base, config_api_key):
             token = config_api_key
@@ -115,60 +78,50 @@ def cmd_login(upstream_url: str | None = None) -> None:
             raise typer.Exit(1)
         token = token.strip()
 
-    save_project_upstream(url, workspace)
-    cred_path = save_workspace_token(workspace, token)
+    config_path = save_upstream_to_config(url, workspace, token)
     console.print(
         f"[green]Logged in to [bold]{workspace}[/bold].[/green]\n"
-        f"  Connection: .skene-upstream\n"
-        f"  Token:      {cred_path}"
+        f"  Config: {config_path}"
     )
 
 
 def cmd_logout() -> None:
-    """Remove project .skene-upstream and the workspace token from credentials."""
-    project = load_project_upstream()
-    if project and project.get("workspace"):
-        remove_workspace_token(project["workspace"])
-
-    removed = remove_project_upstream()
+    """Remove upstream credentials from .skene-growth.config."""
+    removed = remove_upstream_from_config()
     if removed:
-        console.print(f"[green]Logged out.[/green] Removed {removed}")
+        console.print(f"[green]Logged out.[/green] Removed upstream credentials from {removed}")
     else:
-        console.print("[dim]No project upstream credentials found (.skene-upstream).[/dim]")
+        console.print("[dim]No upstream credentials found in .skene-growth.config.[/dim]")
 
 
 def cmd_login_status() -> None:
-    """Show current upstream login status for this project."""
-    project = load_project_upstream()
+    """Show current upstream login status from .skene-growth.config."""
+    config = load_config()
+    upstream = config.upstream
+    workspace = config.get("workspace", "")
 
-    if not project:
-        console.print("[yellow]Not logged in.[/yellow]  No .skene-upstream found in this project.")
+    if not upstream:
+        console.print("[yellow]Not logged in.[/yellow]  No upstream in .skene-growth.config.")
         console.print("[dim]Run: skene login --upstream https://skene.ai/workspace/your-workspace[/dim]")
         return
 
-    workspace = project.get("workspace", "")
-    token = resolve_workspace_token(workspace) if workspace else None
+    api_key, api_key_source = resolve_upstream_api_key_with_source(config)
 
     table = Table(title="Upstream Login Status", show_header=False, padding=(0, 2))
     table.add_column("Key", style="bold")
     table.add_column("Value")
 
-    table.add_row("Upstream", project.get("upstream", "[dim]?[/dim]"))
+    table.add_row("Upstream", upstream)
     table.add_row("Workspace", workspace or "[dim]?[/dim]")
 
-    if token:
-        masked = token[:4] + "..." + token[-4:] if len(token) > 12 else "****"
-        table.add_row("Token", masked)
+    if api_key:
+        masked = api_key[:4] + "..." + api_key[-4:] if len(api_key) > 12 else "****"
+        table.add_row("API Key", f"{masked}  [dim](source: {api_key_source})[/dim]")
     else:
-        table.add_row("Token", "[red]Missing — run skene login[/red]")
+        table.add_row("API Key", "[red]Missing — run skene login[/red]")
 
-    table.add_row("Logged in at", project.get("logged_in_at", "[dim]?[/dim]"))
-
-    from skene_growth.config import find_project_upstream_file, get_credentials_path
-
-    path = find_project_upstream_file()
-    if path:
-        table.add_row("Connection file", str(path))
-    table.add_row("Credentials file", str(get_credentials_path()))
+    config_path = find_project_config()
+    if config_path:
+        table.add_row("Config file", str(config_path))
 
     console.print(table)

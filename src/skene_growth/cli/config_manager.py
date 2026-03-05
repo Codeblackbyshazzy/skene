@@ -115,9 +115,8 @@ def save_config(config_path: Path, provider: str, model: str, api_key: str, base
         lines.append(f'base_url = "{base_url}"')
         lines.append("")
 
-    # Preserve other settings (excluding upstream_api_key - it lives in credentials/env, not config)
     for key, value in existing_config.items():
-        if key not in ["api_key", "provider", "model", "base_url", "upstream_api_key"]:
+        if key not in ["api_key", "provider", "model", "base_url"]:
             if isinstance(value, str):
                 lines.append(f'{key} = "{value}"')
             elif isinstance(value, bool):
@@ -274,7 +273,7 @@ def interactive_config_setup() -> tuple[Path, str, str, str, str | None]:
 
 def show_config_status(cfg, project_cfg, user_cfg):
     """Display current configuration status."""
-    from skene_growth.config import load_project_upstream, resolve_upstream_api_key_with_source
+    from skene_growth.config import resolve_upstream_api_key_with_source
 
     console.print(Panel.fit("[bold blue]Configuration[/bold blue]", title="skene-growth"))
 
@@ -302,7 +301,6 @@ def show_config_status(cfg, project_cfg, user_cfg):
     values_table.add_column("Value", style="white")
     values_table.add_column("Source", style="dim")
 
-    # Show API key (masked)
     api_key = cfg.api_key
     if api_key:
         masked = api_key[:4] + "..." + api_key[-4:] if len(api_key) > 8 else "***"
@@ -310,22 +308,15 @@ def show_config_status(cfg, project_cfg, user_cfg):
     else:
         values_table.add_row("api_key", "[dim]Not set[/dim]", "-")
 
-    current_provider = cfg.provider
-    current_model = cfg.model
-
-    values_table.add_row("provider", current_provider, "config/default")
-    values_table.add_row("model", current_model, "config/default")
+    values_table.add_row("provider", cfg.provider, "config/default")
+    values_table.add_row("model", cfg.model, "config/default")
     values_table.add_row("output_dir", cfg.output_dir, "config/default")
     values_table.add_row("verbose", str(cfg.verbose), "config/default")
 
-    project = load_project_upstream()
-    upstream_from_project = project.get("upstream") if project else None
-    upstream_from_config = cfg.upstream
-    upstream_val = upstream_from_project or upstream_from_config or "[dim]Not set[/dim]"
-    upstream_source = ".skene-upstream" if upstream_from_project else ("config" if upstream_from_config else "-")
+    upstream_val = cfg.upstream or "[dim]Not set[/dim]"
+    upstream_source = "config" if cfg.upstream else "-"
     values_table.add_row("upstream", upstream_val, upstream_source)
-    has_upstream = bool(upstream_from_project or upstream_from_config)
-    if has_upstream:
+    if cfg.upstream:
         api_key, api_key_source = resolve_upstream_api_key_with_source(cfg)
         if api_key:
             masked = api_key[:4] + "..." + api_key[-4:] if len(api_key) > 8 else "***"

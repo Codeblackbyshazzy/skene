@@ -57,7 +57,7 @@ from skene_growth.cli.prompt_builder import (
     save_prompt_to_file,
 )
 from skene_growth.cli.sample_report import show_sample_report
-from skene_growth.config import default_model_for_provider, load_config, load_project_upstream, resolve_upstream_token
+from skene_growth.config import default_model_for_provider, load_config, resolve_upstream_token
 
 # Command order and groups for --help
 _COMMAND_ORDER = [
@@ -1096,8 +1096,7 @@ def login(
     """
     Log in to upstream for push.
 
-    Saves credentials to .skene-upstream in the current project directory,
-    so each project can target a different upstream workspace.
+    Saves upstream credentials to .skene-growth.config.
 
     Use --status to check current login state.
 
@@ -1209,8 +1208,7 @@ def push(
     from skene_growth.growth_loops.storage import load_existing_growth_loops
 
     config = load_config()
-    project_upstream = load_project_upstream()
-    resolved_upstream = upstream or (project_upstream.get("upstream") if project_upstream else None) or config.upstream
+    resolved_upstream = upstream or config.upstream
     resolved_token = resolve_upstream_token(config) if resolved_upstream else None
 
     # Resolve context directory

@@ -36,7 +36,7 @@ uvx skene-growth push --upstream https://skene.ai/workspace/my-app
 | `PATH` | | Project root directory (default: `.`) |
 | `--context PATH` | `-c` | Path to `skene-context` directory (auto-detected if omitted) |
 | `--loop TEXT` | `-l` | Push only this loop by `loop_id`. If omitted, pushes all loops with Supabase telemetry. |
-| `--upstream TEXT` | `-u` | Upstream workspace URL (e.g. `https://skene.ai/workspace/my-app`). Resolved from `.skene-upstream`, config, or this flag. |
+| `--upstream TEXT` | `-u` | Upstream workspace URL (e.g. `https://skene.ai/workspace/my-app`). Resolved from `.skene-growth.config` or this flag. |
 | `--push-only` | | Re-push current output without regenerating migrations |
 
 ## How it works
@@ -57,7 +57,7 @@ The migration is written to `supabase/migrations/<timestamp>_skene_growth_teleme
 
 ### Step 3: Push to upstream (optional)
 
-When an upstream URL is configured (via `--upstream`, `.skene-upstream`, or config), the command packages the growth loops and telemetry SQL and sends them to the upstream API at `POST https://www.skene.ai/api/v1/deploys`.
+When an upstream URL is configured (via `--upstream` or `.skene-growth.config`), the command packages the growth loops and telemetry SQL and sends them to the upstream API at `POST https://www.skene.ai/api/v1/deploys`.
 
 ## Base schema
 
@@ -101,9 +101,8 @@ uvx skene-growth login --upstream https://skene.ai/workspace/my-app
 
 The upstream URL can also be resolved from:
 
-1. `.skene-upstream` file in the project directory (saved by `skene login`)
-2. `upstream` field in `.skene-growth.config`
-3. `--upstream` CLI flag (highest priority)
+1. `upstream` field in `.skene-growth.config` (saved by `skene login`)
+2. `--upstream` CLI flag (highest priority)
 
 ## Next steps
 

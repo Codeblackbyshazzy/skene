@@ -309,14 +309,14 @@ skene-growth push [PATH] [OPTIONS]
 |------|-------|---------|-------------|
 | `--context PATH` | `-c` | auto-detected | Path to `skene-context` directory. Auto-detected from `<PATH>/skene-context/` or `./skene-context/`. |
 | `--loop TEXT` | `-l` | | Push only this loop (by `loop_id`). If omitted, pushes all loops with Supabase telemetry. |
-| `--upstream TEXT` | `-u` | config or `.skene-upstream` | Upstream workspace URL (e.g. `https://skene.ai/workspace/my-app`). Resolved from `.skene-upstream`, config, or this flag. |
+| `--upstream TEXT` | `-u` | config | Upstream workspace URL (e.g. `https://skene.ai/workspace/my-app`). Resolved from `.skene-growth.config` or this flag. |
 | `--push-only` | | `false` | Re-push current output without regenerating migrations |
 
 ### Behavior notes
 
 - Requires growth loops with Supabase telemetry (type `"supabase"`) in `skene-context/growth-loops/`.
 - Generates a migration file at `supabase/migrations/<timestamp>_skene_growth_telemetry.sql`.
-- When `--upstream` is provided (or resolved from `.skene-upstream`), pushes the package (growth loops + telemetry SQL) to the upstream API.
+- When `--upstream` is provided (or resolved from `.skene-growth.config`), pushes the package (growth loops + telemetry SQL) to the upstream API.
 - Use `skene login` to authenticate before pushing to upstream.
 
 See the [push guide](../guides/push.md) for detailed usage.
@@ -340,9 +340,7 @@ skene-growth login [OPTIONS]
 
 ### Behavior notes
 
-- Saves credentials to `.skene-upstream` (non-secret: URL, workspace, timestamp) in the current project directory.
-- Saves the authentication token to `~/.config/skene-growth/credentials` with restrictive permissions (`0600`).
-- Each project can target a different upstream workspace.
+- Saves upstream URL, workspace, and API key to `.skene-growth.config` with restrictive permissions (`0600`).
 - Use `--status` to check whether you are logged in for the current project.
 
 See the [login guide](../guides/login.md) for detailed usage.
@@ -359,8 +357,7 @@ skene-growth logout
 
 ### Behavior notes
 
-- Removes `.skene-upstream` from the current project directory.
-- Removes the workspace token from `~/.config/skene-growth/credentials`.
+- Removes upstream credentials from `.skene-growth.config`.
 - Does not invalidate the token server-side.
 
 ---

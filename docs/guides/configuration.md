@@ -123,14 +123,7 @@ exclude_folders = ["tests", "vendor"]
 
 ## Upstream credentials
 
-When using `skene push` to deploy to Skene Cloud, credentials are stored separately from the config file:
-
-| File | Contents | Purpose |
-|------|----------|---------|
-| `.skene-upstream` | Upstream URL, workspace slug, timestamp | Per-project upstream target (non-secret) |
-| `~/.config/skene-growth/credentials` | Authentication tokens keyed by workspace | Secure token storage (`0600` permissions) |
-
-These files are managed by `skene login` and `skene logout`. See the [login guide](login.md) for details.
+When using `skene push` to deploy to Skene Cloud, upstream URL, workspace slug, and API key are stored in `.skene-growth.config` (with `0600` permissions). These fields are managed by `skene login` and `skene logout`. See the [login guide](login.md) for details.
 
 ## Excluding folders
 

@@ -105,7 +105,7 @@ Cache: SKENE_CACHE_ENABLED (true), SKENE_CACHE_DIR (~/.cache/skene-growth-mcp), 
 ## Python API
 
 Core: CodebaseExplorer, ManifestAnalyzer, TechStackAnalyzer, GrowthFeaturesAnalyzer
-Config: Config, load_config, load_project_upstream, resolve_upstream_token
+Config: Config, load_config, save_upstream_to_config, remove_upstream_from_config, resolve_upstream_token
 LLM: LLMClient, create_llm_client
 Schemas: GrowthManifest, DocsManifest, TechStack, GrowthFeature, GrowthOpportunity, IndustryInfo, ProductOverview, Feature
 Feature Registry: load_feature_registry, merge_features_into_registry, merge_registry_and_enrich_manifest, export_registry_to_format

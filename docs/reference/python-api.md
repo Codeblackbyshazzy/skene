@@ -137,11 +137,9 @@ config.set("provider", "gemini")
 
 ```python
 from skene_growth.config import (
-    load_project_upstream,      # Read .skene-upstream
-    save_project_upstream,      # Write .skene-upstream
-    resolve_upstream_token,     # Resolve token from env/config/credentials
-    save_workspace_token,       # Save token to ~/.config/skene-growth/credentials
-    resolve_workspace_token,    # Load token for specific workspace
+    save_upstream_to_config,    # Save upstream URL, workspace, API key to .skene-growth.config
+    remove_upstream_from_config,# Remove upstream credentials from .skene-growth.config
+    resolve_upstream_token,     # Resolve token from env/config
 )
 ```
 

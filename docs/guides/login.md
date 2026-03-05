@@ -44,22 +44,16 @@ No options. Removes saved credentials for the current project.
 
 ## How credentials are stored
 
-Login saves two files:
+Login saves upstream URL, workspace slug, and API key to `.skene-growth.config` in the project directory (restrictive permissions `0600`). This file is gitignored by default.
 
-| File | Contents | Security |
-|------|----------|----------|
-| `.skene-upstream` (project directory) | Upstream URL, workspace slug, timestamp | Non-secret, safe to commit |
-| `~/.config/skene-growth/credentials` | Authentication token (keyed by workspace) | Restrictive permissions (`0600`), never commit |
-
-Each project can target a different upstream workspace. The credentials file stores tokens keyed by workspace slug, so multiple projects can coexist.
+Logout removes those fields from the same file, preserving other settings.
 
 ## Token resolution
 
 When commands need an upstream token, it is resolved in this order:
 
 1. `SKENE_UPSTREAM_API_KEY` environment variable
-2. Config file `api_key` field (if `.skene-upstream` exists)
-3. `~/.config/skene-growth/credentials` file (keyed by workspace)
+2. `upstream_api_key` field in `.skene-growth.config`
 
 ## Next steps
 

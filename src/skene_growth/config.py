@@ -11,7 +11,6 @@ Priority: CLI args > environment variables > project config > user config
 import logging
 import os
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -119,9 +118,6 @@ class Config:
         return self.get("upstream_api_key")
 
 
-PROJECT_UPSTREAM_FILE = ".skene-upstream"
-
-
 def find_project_config() -> Path | None:
     """Find project-level config file (.skene-growth.config)."""
     cwd = Path.cwd()
@@ -135,147 +131,80 @@ def find_project_config() -> Path | None:
     return None
 
 
-def find_project_upstream_file() -> Path | None:
-    """Find project-level .skene-upstream file (searches up from cwd)."""
-    cwd = Path.cwd()
-    for parent in [cwd, *cwd.parents]:
-        path = parent / PROJECT_UPSTREAM_FILE
-        if path.exists():
-            return path
-    return None
+def save_upstream_to_config(upstream_url: str, workspace_slug: str, api_key: str) -> Path:
+    """Save upstream connection info and API key to .skene-growth.config.
 
-
-def load_project_upstream() -> dict[str, Any] | None:
-    """Load project-local upstream config from .skene-upstream.
-
-    Returns dict with keys: upstream, workspace, logged_in_at — or None.
-    No secrets are stored here; tokens live in ~/.config/skene-growth/credentials.
+    Creates the file if it doesn't exist, or merges into the existing one
+    preserving all other settings.
     """
-    path = find_project_upstream_file()
-    if not path:
-        return None
-    try:
-        data = load_toml(path)
-        if data.get("upstream") and data.get("workspace"):
-            return data
-    except Exception as exc:
-        # Non-fatal: treat as no upstream configured
-        logger.debug("Failed to load upstream config from %s: %s", path, exc)
-    return None
-
-
-def save_project_upstream(upstream_url: str, workspace_slug: str) -> Path:
-    """Save upstream connection info to .skene-upstream in current directory.
-
-    Only stores non-secret data (URL, workspace slug, timestamp).
-    """
-    path = Path.cwd() / PROJECT_UPSTREAM_FILE
-    escaped_url = upstream_url.replace("\\", "\\\\").replace('"', '\\"')
-    escaped_slug = workspace_slug.replace("\\", "\\\\").replace('"', '\\"')
-    timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-
-    content = f'upstream = "{escaped_url}"\nworkspace = "{escaped_slug}"\nlogged_in_at = "{timestamp}"\n'
-    path.write_text(content, encoding="utf-8")
-    return path
-
-
-def remove_project_upstream() -> Path | None:
-    """Remove .skene-upstream from current project. Returns path if removed."""
-    path = find_project_upstream_file()
-    if path and path.exists():
-        path.unlink()
-        return path
-    return None
-
-
-def save_workspace_token(workspace_slug: str, token: str) -> Path:
-    """Save token for a workspace to ~/.config/skene-growth/credentials (0o600).
-
-    Credentials file uses [workspaces] table keyed by slug so multiple
-    workspaces can coexist without overwriting each other.
-    """
-    cred_path = get_credentials_path()
-    cred_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path = find_project_config() or (Path.cwd() / ".skene-growth.config")
 
     existing: dict[str, Any] = {}
-    if cred_path.exists():
+    if config_path.exists():
         try:
-            existing = load_toml(cred_path)
-        except (OSError, tomllib.TOMLDecodeError):
-            # Corrupted or unreadable credentials file — start fresh
-            existing = {}
+            existing = load_toml(config_path)
+        except Exception:
+            pass
 
-    workspaces = dict(existing.get("workspaces", {}))
-    escaped = token.replace("\\", "\\\\").replace('"', '\\"')
-    workspaces[workspace_slug] = escaped
+    existing["upstream"] = upstream_url
+    existing["workspace"] = workspace_slug
+    existing["upstream_api_key"] = api_key
 
-    lines = []
-    # Preserve legacy global token for backward compat
-    if "token" in existing:
-        legacy = existing["token"]
-        lines.append(f'token = "{legacy}"')
-        lines.append("")
-    lines.append("[workspaces]")
-    for slug, tok in sorted(workspaces.items()):
-        lines.append(f'{slug} = "{tok}"')
-    lines.append("")
-
-    cred_path.write_text("\n".join(lines), encoding="utf-8")
-    if sys.platform != "win32":
-        try:
-            cred_path.chmod(0o600)
-        except (OSError, PermissionError) as exc:
-            # Best-effort: permission setting is non-fatal; file is still usable
-            print(f"[skene-growth] Could not chmod credentials file: {exc}", file=sys.stderr)
-    return cred_path
+    _write_config_toml(config_path, existing)
+    return config_path
 
 
-def resolve_workspace_token(workspace_slug: str) -> str | None:
-    """Look up the token for a specific workspace from the credentials file."""
-    cred_path = get_credentials_path()
-    if not cred_path.exists():
+def remove_upstream_from_config() -> Path | None:
+    """Remove upstream, workspace, and upstream_api_key from .skene-growth.config.
+
+    Returns path if the file was found and updated, None otherwise.
+    """
+    config_path = find_project_config()
+    if not config_path or not config_path.exists():
         return None
+
     try:
-        data = load_toml(cred_path)
-        workspaces = data.get("workspaces", {})
-        token = workspaces.get(workspace_slug)
-        return token.strip() if isinstance(token, str) and token else None
+        existing = load_toml(config_path)
     except Exception:
         return None
 
+    changed = False
+    for key in ("upstream", "upstream_url", "workspace", "upstream_api_key"):
+        if key in existing:
+            del existing[key]
+            changed = True
 
-def remove_workspace_token(workspace_slug: str) -> bool:
-    """Remove the token for a workspace from credentials file. Returns True if removed."""
-    cred_path = get_credentials_path()
-    if not cred_path.exists():
-        return False
-    try:
-        existing = load_toml(cred_path)
-    except Exception:
-        return False
-    workspaces = dict(existing.get("workspaces", {}))
-    if workspace_slug not in workspaces:
-        return False
-    del workspaces[workspace_slug]
+    if not changed:
+        return None
 
-    lines = []
-    if "token" in existing:
-        lines.append(f'token = "{existing["token"]}"')
-        lines.append("")
-    if workspaces:
-        lines.append("[workspaces]")
-        for slug, tok in sorted(workspaces.items()):
-            lines.append(f'{slug} = "{tok}"')
+    _write_config_toml(config_path, existing)
+    return config_path
+
+
+def _write_config_toml(path: Path, data: dict[str, Any]) -> None:
+    """Write a flat dict as a TOML file, preserving all keys."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines: list[str] = []
+    for key, value in data.items():
+        if isinstance(value, str):
+            escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+            lines.append(f'{key} = "{escaped}"')
+        elif isinstance(value, bool):
+            lines.append(f"{key} = {str(value).lower()}")
+        elif isinstance(value, list):
+            items = ", ".join(f'"{v}"' if isinstance(v, str) else str(v) for v in value)
+            lines.append(f"{key} = [{items}]")
+        elif isinstance(value, (int, float)):
+            lines.append(f"{key} = {value}")
+        else:
+            lines.append(f'{key} = "{value}"')
     lines.append("")
-
-    cred_path.write_text("\n".join(lines), encoding="utf-8")
+    path.write_text("\n".join(lines), encoding="utf-8")
     if sys.platform != "win32":
         try:
-            cred_path.chmod(0o600)
-        except (OSError, PermissionError) as exc:
-            # Best-effort: permission setting is non-fatal; token removal already succeeded
-            print(f"[skene-growth] Could not chmod credentials file: {exc}", file=sys.stderr)
-    return True
+            path.chmod(0o600)
+        except (OSError, PermissionError):
+            pass
 
 
 def find_user_config() -> Path | None:
@@ -294,14 +223,6 @@ def find_user_config() -> Path | None:
     return None
 
 
-def get_credentials_path() -> Path:
-    """Return path to user-level credentials file (for upstream token)."""
-    config_home = os.environ.get("XDG_CONFIG_HOME")
-    if config_home:
-        return Path(config_home) / "skene-growth" / "credentials"
-    return Path.home() / ".config" / "skene-growth" / "credentials"
-
-
 def resolve_upstream_token(config: Config) -> str | None:
     """Resolve upstream API key. See resolve_upstream_api_key_with_source for precedence."""
     key, _ = resolve_upstream_api_key_with_source(config)
@@ -313,17 +234,9 @@ def resolve_upstream_api_key_with_source(config: Config) -> tuple[str | None, st
     Resolve upstream API key and its source. Returns (api_key, source).
 
     Precedence:
-    1. Workspace-keyed key from credentials (matched via .skene-upstream)
-    2. SKENE_UPSTREAM_API_KEY env
-    3. Config file upstream_api_key
-    4. Legacy global key from credentials file
+    1. SKENE_UPSTREAM_API_KEY env
+    2. upstream_api_key from .skene-growth.config (or user config)
     """
-    project = load_project_upstream()
-    if project and project.get("workspace"):
-        token = resolve_workspace_token(project["workspace"])
-        if token:
-            return token.strip(), ".skene-upstream/credentials"
-
     env_key = os.environ.get("SKENE_UPSTREAM_API_KEY")
     if env_key:
         return env_key.strip(), "env"
@@ -331,16 +244,6 @@ def resolve_upstream_api_key_with_source(config: Config) -> tuple[str | None, st
     if config.upstream_api_key:
         return config.upstream_api_key.strip(), "config"
 
-    cred_path = get_credentials_path()
-    if cred_path.exists():
-        try:
-            data = load_toml(cred_path)
-            token = data.get("token") or data.get("upstream_api_key")
-            if isinstance(token, str) and token.strip():
-                return token.strip(), "credentials"
-        except Exception as exc:
-            # Ignore malformed credentials file, but log for debugging purposes.
-            print(f"Warning: failed to load upstream credentials from {cred_path}: {exc}", file=sys.stderr)
     return None, "-"
 
 
