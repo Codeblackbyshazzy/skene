@@ -57,9 +57,11 @@ The migration is written to `supabase/migrations/<timestamp>_skene_growth_teleme
 
 ### Step 3: Push to upstream (optional)
 
-When an upstream URL is configured (via `--upstream`, `.skene-upstream`, or config), the command packages the growth loops and telemetry SQL and sends them to the upstream API at `POST /api/v1/deploys`.
+When an upstream URL is configured (via `--upstream`, `.skene-upstream`, or config), the command packages the growth loops and telemetry SQL and sends them to the upstream API at `POST https://www.skene.ai/api/v1/deploys`.
 
 ## Base schema
+
+Right now init create the sql files required for deploying skene-growth schema to supabase without connecting Skene Cloud at all. The goal is to increase security.
 
 Before pushing telemetry migrations, you need the base schema. Run `skene init` to create it:
 
@@ -80,10 +82,10 @@ Growth loops include telemetry definitions that describe what events to capture.
 ```json
 {
   "type": "supabase",
-  "table": "user_profiles",
+  "table": "documents",
   "operation": "INSERT",
-  "properties": ["id", "email", "created_at"],
-  "action_name": "user_signup"
+  "properties": ["id", "name", "created_at"],
+  "action_name": "document_insert"
 }
 ```
 

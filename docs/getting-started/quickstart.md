@@ -77,17 +77,11 @@ Checks that required files, functions, and patterns exist in your codebase. Each
 If your project uses Supabase, initialize the base schema and push growth loop telemetry:
 
 ```bash
-# One-time: create the base schema migration
+# One-time: create the base schema migration - to use in deploying the Skene Growth schema yourself.
 uvx skene-growth init
 
 # Generate telemetry triggers and push
-uvx skene-growth push
-```
-
-To also push to Skene Cloud:
-
-```bash
-uvx skene-growth login --upstream https://skene.ai/workspace/my-app
+uvx skene-growth login --upstream https://skene.ai/workspace/<my-workspace-name>
 uvx skene-growth push
 ```
 

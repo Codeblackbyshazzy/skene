@@ -5,7 +5,7 @@ The `login` and `logout` commands manage authentication with Skene Cloud upstrea
 ## Prerequisites
 
 - A Skene Cloud workspace URL (e.g. `https://skene.ai/workspace/my-app`)
-- An API token for your workspace
+- An API token for your workspace. Get your workspace api-key here: https://www.skene.ai/workspace/apikeys
 
 ## Basic usage
 
