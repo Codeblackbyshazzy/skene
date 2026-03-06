@@ -11,14 +11,14 @@ import (
 
 // Config represents the skene configuration
 type Config struct {
-	Provider     string `json:"provider"`
-	Model        string `json:"model"`
-	APIKey       string `json:"api_key"`
-	OutputDir    string `json:"output_dir"`
-	Verbose      bool   `json:"verbose"`
-	ProjectDir   string `json:"project_dir"`
-	BaseURL      string `json:"base_url,omitempty"`
-	UseGrowth bool `json:"use_growth"`
+	Provider   string `json:"provider"`
+	Model      string `json:"model"`
+	APIKey     string `json:"api_key"`
+	OutputDir  string `json:"output_dir"`
+	Verbose    bool   `json:"verbose"`
+	ProjectDir string `json:"project_dir"`
+	BaseURL    string `json:"base_url,omitempty"`
+	UseGrowth  bool   `json:"use_growth"`
 }
 
 // Manager handles configuration file operations
@@ -246,12 +246,12 @@ func GetProviders() []Provider {
 		{
 			ID:          "openai",
 			Name:        "OpenAI",
-			Description: "GPT-4o and GPT-4 models",
+			Description: "OpenAI GPT models",
 			RequiresKey: true,
 			Models: []Model{
-				{ID: "gpt-4o", Name: "gpt-4o", Description: "Most capable, multimodal"},
-				{ID: "gpt-4-turbo", Name: "gpt-4-turbo", Description: "Fast GPT-4 variant"},
-				{ID: "gpt-3.5-turbo", Name: "gpt-3.5-turbo", Description: "Fast and affordable"},
+				{ID: "gpt-5.4", Name: "GPT-5.4", Description: "Most capable model for professional work"},
+				{ID: "gpt-5.1", Name: "GPT-5.1", Description: "Best for coding and agentic tasks"},
+				{ID: "gpt-5-mini", Name: "GPT-5 mini", Description: "Fast, cost-efficient for well-defined tasks"},
 			},
 		},
 		{
