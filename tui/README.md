@@ -33,7 +33,7 @@ None. The CLI automatically downloads the [uv](https://docs.astral.sh/uv/) runti
 ### Quick Install (recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Px8-fi/skene-cli/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/SkeneTechnologies/skene/main/tui/install.sh | bash
 ```
 
 This downloads the latest release binary for your platform and installs it to `/usr/local/bin`.
@@ -41,14 +41,14 @@ This downloads the latest release binary for your platform and installs it to `/
 To install a specific version:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Px8-fi/skene-cli/main/install.sh | VERSION=v030 bash
+curl -fsSL https://raw.githubusercontent.com/SkeneTechnologies/skene/main/tui/install.sh | VERSION=v030 bash
 ```
 
 ### Clone and Run
 
 ```bash
-git clone https://github.com/Px8-fi/skene-cli.git
-cd skene-cli
+git clone https://github.com/SkeneTechnologies/skene.git
+cd skene/tui
 make build
 make run
 ```
@@ -56,8 +56,8 @@ make run
 ### Build from Source (requires Go 1.22+)
 
 ```bash
-git clone https://github.com/Px8-fi/skene-cli.git
-cd skene-cli
+git clone https://github.com/SkeneTechnologies/skene.git
+cd skene/tui
 make install   # download dependencies
 make build
 make run
@@ -71,7 +71,7 @@ make install-bin   # copies build/skene to /usr/local/bin
 
 ## Usage
 
-Run `skene` and follow the prompts:
+Run `skene` and follow the steps:
 
 ```
 Welcome

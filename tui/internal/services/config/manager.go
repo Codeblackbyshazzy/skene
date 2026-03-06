@@ -219,6 +219,7 @@ type Provider struct {
 	IsLocal     bool   // For local models (Ollama, LM Studio)
 	IsGeneric   bool   // For generic OpenAI-compatible APIs
 	DefaultBase string // Default base URL for local/generic providers
+	Hidden      bool   // Hidden from provider list (kept for upcoming release)
 }
 
 // Model represents an LLM model
@@ -237,6 +238,7 @@ func GetProviders() []Provider {
 			Description: "Built-in LLM optimized for growth analysis",
 			RequiresKey: true,
 			AuthURL:     constants.SkeneAuthURL,
+			Hidden:      true,
 			Models: []Model{
 				{ID: "skene-v1", Name: "skene-v1", Description: "Growth analysis model"},
 			},

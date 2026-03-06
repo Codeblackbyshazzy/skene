@@ -8,9 +8,10 @@ var (
 
 // URLs
 const (
-	SkeneAuthURL       = "https://skene-cli-demo.vercel.app/auth"
-	UVDownloadBaseURL  = "https://github.com/astral-sh/uv/releases/latest/download"
-	OllamaDefaultBase  = "http://localhost:11434/v1"
+	// TODO: add auth URL once Skene auth is implemented
+	SkeneAuthURL        = ""
+	UVDownloadBaseURL   = "https://github.com/astral-sh/uv/releases/latest/download"
+	OllamaDefaultBase   = "http://localhost:11434/v1"
 	LMStudioDefaultBase = "http://localhost:1234/v1"
 )
 
@@ -24,14 +25,14 @@ const (
 
 // Package and directory names
 const (
-	GrowthPackageName  = "skene"
-	OutputDirName      = "skene-context"
-	DefaultOutputDir   = "./skene-context"
-	SkeneCacheDir      = ".skene"
-	SkeneCacheBinDir   = "bin"
-	ProjectConfigFile  = ".skene.config"
-	UserConfigDir      = ".config/skene"
-	UserConfigFile     = "config"
+	GrowthPackageName = "skene"
+	OutputDirName     = "skene-context"
+	DefaultOutputDir  = "./skene-context"
+	SkeneCacheDir     = ".skene"
+	SkeneCacheBinDir  = "bin"
+	ProjectConfigFile = ".skene.config"
+	UserConfigDir     = ".config/skene"
+	UserConfigFile    = "config"
 )
 
 // Output file names
@@ -54,7 +55,7 @@ type PackageMeta struct {
 var SkenePackages = []PackageMeta{
 	{
 		ID:          "growth",
-		Name:        "Skene Growth",
+		Name:        "Skene",
 		Description: "Tech stack detection, growth features, revenue leakage, growth plans (via uvx)",
 		URL:         "github.com/SkeneTechnologies/skene",
 	},
