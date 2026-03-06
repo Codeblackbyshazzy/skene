@@ -261,8 +261,7 @@ func GetProviders() []Provider {
 			RequiresKey: true,
 			Models: []Model{
 				{ID: "claude-opus-4-6", Name: "claude-opus-4-6", Description: "Most capable model for complex tasks"},
-				{ID: "claude-sonnet-4-5", Name: "claude-sonnet-4-5", Description: "Best combination of speed and intelligence"},
-				{ID: "claude-haiku-4-5", Name: "claude-haiku-4-5", Description: "Fastest model with near-frontier intelligence"},
+				{ID: "claude-sonnet-4-6", Name: "claude-sonnet-4-6", Description: "Best combination of speed and intelligence"},
 			},
 		},
 		{
