@@ -1608,8 +1608,6 @@ async def _build_async(
         features = load_features_for_build(base_output_dir)
 
         # Generate loop definition with LLM (telemetry format depends on run_target)
-        console.print("\n[dim]Please wait...Generating growth loop definition...[/dim]")
-        console.print("")
         output_status("Generating growth loop definition")
         loop_definition = await generate_loop_definition_with_llm(
             llm=llm,
@@ -1643,7 +1641,6 @@ async def _build_async(
         )
 
         output_status(f"Saved growth loop to: {saved_path}")
-        console.print(f"[dim]Saved growth loop to: {saved_path}[/dim]\n")
 
     except Exception as e:
         # Don't fail the whole build if storage fails
@@ -1703,7 +1700,6 @@ async def _build_async(
                 target = "cursor"
 
     # 4. Prompt build
-    console.print("\n[dim]Generating implementation prompt...[/dim]\n")
     output_status("Generating implementation prompt")
     try:
         prompt = await build_prompt_with_llm(plan.resolve(), technical_execution, llm)
@@ -1715,8 +1711,6 @@ async def _build_async(
     # Save prompt to a file for cross-platform consumption
     prompt_output_dir = plan.parent if plan else Path(config.output_dir)
     prompt_file = save_prompt_to_file(prompt, prompt_output_dir)
-    console.print(f"[dim]Prompt saved to: {prompt_file}[/dim]")
-
     # Execute based on target
     if target == "file":
         # Non-interactive: just save the prompt file and exit
