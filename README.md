@@ -60,24 +60,6 @@ pip install skene
 
 Full documentation: [www.skene.ai/resources/docs/skene](https://www.skene.ai/resources/docs/skene)
 
-## MCP Server
-
-skene includes an MCP server for integration with AI assistants. Add to your assistant config:
-
-```json
-{
-  "mcpServers": {
-    "skene": {
-      "command": "uvx",
-      "args": ["--from", "skene[mcp]", "skene-mcp"],
-      "env": {
-        "SKENE_API_KEY": "your-api-key"
-      }
-    }
-  }
-}
-```
-
 ## Monorepo Structure
 
 This repository contains two independent packages:
