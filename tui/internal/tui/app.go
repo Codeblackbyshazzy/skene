@@ -861,8 +861,6 @@ func (a *App) handleResultsKeys(key string) tea.Cmd {
 		a.resultsView.HandleUp()
 	case "down", "j":
 		a.resultsView.HandleDown()
-	case "tab":
-		a.resultsView.HandleTab()
 	case "n", "enter":
 		a.state = StateNextSteps
 		a.nextStepsView = views.NewNextStepsView()
