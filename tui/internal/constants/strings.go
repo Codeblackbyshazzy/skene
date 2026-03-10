@@ -193,14 +193,6 @@ const (
 	StatusIconCompleted = "✓"
 )
 
-// Analyzing view (aliases for backward compat)
-const (
-	AnalyzingFailed     = StatusFailed
-	AnalyzingCompleted  = StatusCompleted
-	AnalyzingInProgress = StatusInProgress
-	AnalyzingDone       = StatusDone
-)
-
 // Game strings
 const (
 	GameTitle        = "TIME TO"

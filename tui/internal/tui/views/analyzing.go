@@ -156,7 +156,7 @@ func (v *AnalyzingView) UpdatePhaseByName(phaseName string, progress float64, me
 // SetDone marks the command as successfully completed
 func (v *AnalyzingView) SetDone() {
 	v.done = true
-	v.terminal.AddLine(constants.StatusIconCompleted + " " + constants.AnalyzingDone)
+	v.terminal.AddLine(constants.StatusIconCompleted + " " + constants.StatusDone)
 }
 
 // SetCommandFailed marks the view as failed with the error visible in terminal
@@ -277,7 +277,7 @@ func (v *AnalyzingView) Render() string {
 	// Current phase status
 	var statusLine string
 	if v.failed {
-		statusLine = styles.Error.Render(constants.StatusIconFailed + " " + constants.AnalyzingFailed)
+		statusLine = styles.Error.Render(constants.StatusIconFailed + " " + constants.StatusFailed)
 		if v.failMessage != "" {
 			statusLine += "\n" + lipgloss.NewStyle().
 				Foreground(styles.MidGray).
@@ -285,9 +285,9 @@ func (v *AnalyzingView) Render() string {
 				Render("  "+v.failMessage)
 		}
 	} else if v.done {
-		statusLine = styles.SuccessText.Render(constants.StatusIconCompleted + " " + constants.AnalyzingCompleted)
+		statusLine = styles.SuccessText.Render(constants.StatusIconCompleted + " " + constants.StatusCompleted)
 	} else if len(v.phases) > 0 && v.AllPhasesDone() {
-		statusLine = styles.SuccessText.Render(constants.StatusIconCompleted + " " + constants.AnalyzingCompleted)
+		statusLine = styles.SuccessText.Render(constants.StatusIconCompleted + " " + constants.StatusCompleted)
 	} else {
 		currentPhase := ""
 		for _, p := range v.phases {
@@ -299,7 +299,7 @@ func (v *AnalyzingView) Render() string {
 		if currentPhase != "" {
 			statusLine = v.spinner.Render() + " " + styles.Body.Render(currentPhase)
 		} else {
-			statusLine = v.spinner.Render() + " " + styles.Body.Render(constants.AnalyzingInProgress)
+			statusLine = v.spinner.Render() + " " + styles.Body.Render(constants.StatusInProgress)
 		}
 	}
 
