@@ -24,14 +24,14 @@ const (
 )
 
 var (
-	styleShip      = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))
-	styleBullet    = lipgloss.NewStyle().Foreground(lipgloss.Color("226"))
-	styleEnemy     = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
-	styleTerrain   = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFA552"))
-	styleHUD       = lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Bold(true)
-	styleExplo     = lipgloss.NewStyle().Foreground(lipgloss.Color("208"))
-	styleDead      = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
-	styleEnemyBul  = lipgloss.NewStyle().Foreground(lipgloss.Color("201"))
+	styleShip     = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))
+	styleBullet   = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
+	styleEnemy    = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
+	styleTerrain  = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFA552"))
+	styleHUD      = lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Bold(true)
+	styleExplo    = lipgloss.NewStyle().Foreground(lipgloss.Color("208"))
+	styleDead     = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
+	styleEnemyBul = lipgloss.NewStyle().Foreground(lipgloss.Color("201"))
 )
 
 type vec2 struct{ x, y int }
