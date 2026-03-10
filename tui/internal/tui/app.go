@@ -245,18 +245,12 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.MouseMsg:
-		switch msg.Button {
-		case tea.MouseButtonWheelUp:
-			if a.state == StateResults && a.resultsView != nil {
+		if a.state == StateResults && a.resultsView != nil {
+			switch msg.Button {
+			case tea.MouseButtonWheelUp:
 				a.resultsView.HandleUp()
-			} else if a.state == StateAnalyzing && a.analyzingView != nil {
-				a.analyzingView.ScrollUp(3)
-			}
-		case tea.MouseButtonWheelDown:
-			if a.state == StateResults && a.resultsView != nil {
+			case tea.MouseButtonWheelDown:
 				a.resultsView.HandleDown()
-			} else if a.state == StateAnalyzing && a.analyzingView != nil {
-				a.analyzingView.ScrollDown(3)
 			}
 		}
 
