@@ -735,9 +735,10 @@ func (g *Game) Render() string {
 			set(e.pos.x-1, e.pos.y+1, '▄', styleEnemy)
 		} else {
 			ch := '>'
-			if e.kind == 1 {
+			switch e.kind {
+			case 1:
 				ch = '✦'
-			} else if e.kind == 2 {
+			case 2:
 				ch = '◄'
 			}
 			set(e.pos.x, e.pos.y, ch, styleEnemy)

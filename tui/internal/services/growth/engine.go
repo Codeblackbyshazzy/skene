@@ -263,9 +263,9 @@ func (e *Engine) runUVX(ctx context.Context, args []string) error {
 		})
 		select {
 		case answer := <-responseCh:
-			fmt.Fprintln(stdin, answer)
+			_, _ = fmt.Fprintln(stdin, answer)
 		case <-ctx.Done():
-			stdin.Close()
+			_ = stdin.Close()
 		}
 		collectingOptions = false
 		pendingOptions = nil
@@ -328,7 +328,7 @@ func (e *Engine) runUVX(ctx context.Context, args []string) error {
 				firePrompt()
 			case <-ctx.Done():
 				timer.Stop()
-				stdin.Close()
+				_ = stdin.Close()
 				goto done
 			}
 		} else {
@@ -339,7 +339,7 @@ func (e *Engine) runUVX(ctx context.Context, args []string) error {
 				}
 				processLine(r.line)
 			case <-ctx.Done():
-				stdin.Close()
+				_ = stdin.Close()
 				goto done
 			}
 		}
