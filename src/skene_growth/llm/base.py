@@ -59,3 +59,10 @@ class LLMClient(ABC):
     def get_provider_name(self) -> str:
         """Return the provider name (e.g., 'google', 'openai')."""
         pass
+
+    async def generate_content_with_usage(
+        self, prompt: str
+    ) -> tuple[str, dict[str, int] | None]:
+        """Generate content and return (content, usage). Usage dict has input_tokens, output_tokens. Returns None when not available."""
+        content = await self.generate_content(prompt)
+        return (content, None)

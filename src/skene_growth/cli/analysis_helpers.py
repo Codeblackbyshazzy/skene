@@ -56,6 +56,7 @@ async def run_analysis(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console,
+        transient=True,
     ) as progress:
         task = progress.add_task("Initializing...", total=None)
 
@@ -152,6 +153,7 @@ async def run_features_analysis(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console,
+        transient=True,
     ) as progress:
         task = progress.add_task("Initializing...", total=None)
         try:
@@ -408,7 +410,7 @@ priority is "high", "medium", or "low". Return only the JSON object, nothing els
         return None
 
 
-async def run_cycle(
+async def run_generate_plan(
     manifest_path: Path | None,
     template_path: Path | None,
     output_path: Path,
@@ -435,6 +437,7 @@ async def run_cycle(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console,
+        transient=True,
     ) as progress:
         task = progress.add_task("Initializing...", total=None)
 
@@ -492,21 +495,21 @@ async def run_cycle(
             )
 
             # Generate memo
-            memo_type = "activation memo" if activation else "Council memo"
+            memo_type = "activation memo" if activation else "growth plan"
             progress.update(task, description=f"Generating {memo_type}...")
-            from skene_growth.planner import Planner
+            from skene_growth.planner import Planner, load_plan_steps
 
             planner = Planner()
 
-            # Start progress indicator for generation
-            stop_event = asyncio.Event()
-            progress_task = None
+            output_path.parent.mkdir(parents=True, exist_ok=True)
 
-            try:
+            growth_plan = None
+            tokens_used: list[int] = []
+            if activation:
+                # Activation memo: single LLM call with progress spinner
+                stop_event = asyncio.Event()
                 progress_task = asyncio.create_task(_show_progress_indicator(stop_event))
-
-                growth_plan = None
-                if activation:
+                try:
                     memo_content = await planner.generate_activation_memo(
                         llm=llm,
                         manifest_data=manifest_data,
@@ -514,27 +517,55 @@ async def run_cycle(
                         growth_loops=growth_loops,
                         user_prompt=user_prompt,
                     )
-                else:
-                    memo_content, growth_plan = await planner.generate_council_memo(
-                        llm=llm,
-                        manifest_data=manifest_data,
-                        template_data=template_data,
-                        growth_loops=growth_loops,
-                        user_prompt=user_prompt,
-                    )
-            finally:
-                # Stop progress indicator
-                if progress_task is not None:
+                finally:
                     stop_event.set()
                     try:
                         await progress_task
                     except Exception:
                         pass
+                output_path.write_text(memo_content)
+            else:
+                # Growth plan: multi-step orchestration with incremental writes
+                plan_steps = await load_plan_steps(context_dir=context_dir, llm=llm)
 
-            # Write output
-            progress.update(task, description="Writing output...")
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            output_path.write_text(memo_content)
+                # Prepare file with empty content (will be appended per step)
+                header_lines = [
+                    "**Growth Plan Next Steps**",
+                    f"**Generated:** {__import__('datetime').datetime.now().isoformat()}",
+                    "",
+                    "---",
+                    "",
+                ]
+                output_path.write_text("\n".join(header_lines))
+
+                def on_step(
+                    step_number: int,
+                    title: str,
+                    markdown_chunk: str,
+                    usage: dict[str, int] | None = None,
+                ) -> None:
+                    if usage is not None:
+                        tokens_used.append(usage)
+                    suffix = ""
+                    if usage:
+                        inp = usage.get("input_tokens", 0)
+                        out = usage.get("output_tokens", 0)
+                        suffix = f" ({inp:,} in / {out:,} out)"
+                    console.print(f"[green]Generated section:[/green] {title}{suffix}")
+                    with output_path.open("a", encoding="utf-8") as f:
+                        f.write(markdown_chunk + "\n")
+
+                memo_content, growth_plan = await planner.generate_growth_plan(
+                    llm=llm,
+                    manifest_data=manifest_data,
+                    template_data=template_data,
+                    growth_loops=growth_loops,
+                    user_prompt=user_prompt,
+                    plan_steps=plan_steps,
+                    on_step=on_step,
+                )
+                # Overwrite with the harmonized final version
+                output_path.write_text(memo_content)
 
             # Save structured JSON alongside markdown (council memo only)
             if growth_plan is not None:
@@ -549,7 +580,6 @@ async def run_cycle(
 
             if growth_plan is not None:
                 executive_summary = growth_plan.executive_summary
-                # First section is "The Next Action"
                 todo_summary = growth_plan.sections[0].content if growth_plan.sections else None
             else:
                 from skene_growth.cli.prompt_builder import (
@@ -559,6 +589,16 @@ async def run_cycle(
 
                 executive_summary = extract_executive_summary(memo_content)
                 todo_summary = extract_next_action(memo_content)
+
+            # Print summary (Executive Summary + dynamic sections + Technical Execution)
+            middle_count = len(growth_plan.sections) if growth_plan else 0
+            section_count = 1 + middle_count + 1  # Executive Summary + sections + Technical Execution
+            todo_count = len(todo_list) if todo_list else 0
+            console.print(f"\n[green]Summary:[/green] {section_count} sections, {todo_count} todo items")
+            total_in = sum(u.get("input_tokens", 0) for u in tokens_used)
+            total_out = sum(u.get("output_tokens", 0) for u in tokens_used)
+            if total_in > 0 or total_out > 0:
+                console.print(f"[dim]Total tokens:[/dim] {total_in:,} in / {total_out:,} out")
 
             return memo_content, (executive_summary, todo_summary, todo_list)
 

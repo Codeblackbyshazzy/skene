@@ -63,23 +63,20 @@ The plan command uses a specialized system prompt called the **Council of Growth
 
 The council follows strict rules:
 
-- **No beginner explanations.** Assumes 99th-percentile competence.
-- **No generic growth hacks.** If the advice appears on a "Top 10" list, it is discarded.
-- **No hedging.** The council picks the winning path and kills weak strategies immediately.
+- **Assume 99th-percentile competence.** No beginner definitions.
+- **No "Top 10" listicles.**
+- **Ruthless selection.** If a strategy is "mid" or linear, kill it. But it must be relevant for the utility that drives compounding.
 - **Zero fluff.** Every word must increase signal-to-noise ratio.
-- **Focus on first actions.** The plan targets first-time user activation, not long-term retention.
-- **No demos or hardcoded data.** Solutions must deliver real configuration paths or incremental real value.
+- **Identify utility first.** Be thoughtful: What clear utility does the context showcase? Build compounding from that angle.
 
-The council generates a structured memo covering eight sections:
+The council uses a five-point thinking framework (Growth Core, What?, Why?, How?, Technical Execution) and outputs a structured plan. The middle sections are configurable via a `plan-steps.md` file (see below), with default sections:
 
-1. **Executive Summary** -- High-level overview focused on first-time activation
-2. **The CEO's Next Action** -- The single most impactful move to execute in the next 24 hours
-3. **Strip to the Core** -- Reframes the problem as a first-action activation challenge
-4. **The Playbook** -- Hidden mechanics used by elite growth teams
-5. **Engineer the Asymmetric Leverage** -- The one lever that creates 10x activation for 1x input
-6. **Apply Power Dynamics** -- Strategy based on controlling onboarding, first value, activation friction, and action clarity
-7. **Technical Execution** -- Detailed build plan with confidence scores, exact logic, data triggers, and sequencing
-8. **The Memo** -- The complete engineering memo, direct and high-signal
+1. **Executive Summary** -- The Growth Core: fundamental analysis and Global Maximum
+2. **The Growth Core** -- Fundamental analysis, Global Maximum vs local maxima
+3. **The Playbook (What?)** -- Invisible Playbook, architectural shift, Moat
+4. **The Average Trap (Why?)** -- Common Path failure, V/T compounding logic
+5. **The Mechanics of Leverage (How?)** -- Onboarding, Retention, Virality, Friction
+6. **Technical Execution** -- Logic, Data Triggers, Stack, Sequence
 
 The Technical Execution section is particularly important because it feeds directly into the `build` command.
 
@@ -160,6 +157,28 @@ You can also enable debug mode permanently in your config file:
 ```toml
 debug = true
 ```
+
+## Configurable plan sections with `plan-steps.md`
+
+The middle sections of the plan (everything between Executive Summary and Technical Execution) are configurable via a `plan-steps.md` file located at `skene-context/plan-steps.md` (or the directory specified by `--context`).
+
+The file can be freeform markdown — the system sends it to the LLM to interpret and produce structured section definitions:
+
+```markdown
+## The Growth Core
+Fundamental analysis. Global Maximum vs local maxima.
+
+## The Playbook (What?)
+Invisible Playbook. Moat identification.
+
+## The Average Trap (Why?)
+Common Path failure. V/T compounding logic.
+
+## The Mechanics of Leverage (How?)
+Four powers: Onboarding, Retention, Virality, Friction.
+```
+
+If the file is absent or the LLM parse fails, the system falls back to the default sections listed above.
 
 ## Next steps
 

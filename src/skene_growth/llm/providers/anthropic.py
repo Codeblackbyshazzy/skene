@@ -108,6 +108,50 @@ class AnthropicClient(LLMClient):
         except Exception as e:
             raise RuntimeError(f"Error calling Anthropic: {e}")
 
+    async def generate_content_with_usage(
+        self,
+        prompt: str,
+    ) -> tuple[str, int | None]:
+        """Generate text and return (content, total_tokens). Returns None for tokens when not in response."""
+        try:
+            from anthropic import RateLimitError
+        except ImportError:
+            RateLimitError = Exception
+
+        def _usage_from_response(response) -> dict[str, int] | None:
+            usage = getattr(response, "usage", None)
+            if usage and hasattr(usage, "input_tokens") and hasattr(usage, "output_tokens"):
+                return {"input_tokens": usage.input_tokens, "output_tokens": usage.output_tokens}
+            return None
+
+        try:
+            response = await self.client.messages.create(
+                model=self.model_name,
+                max_tokens=8192,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return (response.content[0].text.strip(), _usage_from_response(response))
+        except RateLimitError as e:
+            logger.warning(f"RateLimitError on {self.model_name}: {e}")
+            if self.no_fallback:
+                content = await self._retry_with_backoff(prompt)
+                return (content, None)
+            logger.warning(f"Falling back to {self.fallback_model}")
+            try:
+                response = await self.client.messages.create(
+                    model=self.fallback_model,
+                    max_tokens=8192,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                logger.info(f"Successfully generated content using fallback model {self.fallback_model}")
+                return (response.content[0].text.strip(), _usage_from_response(response))
+            except Exception as fallback_error:
+                raise RuntimeError(
+                    f"Error calling Anthropic (fallback model {self.fallback_model}): {fallback_error}"
+                )
+        except Exception as e:
+            raise RuntimeError(f"Error calling Anthropic: {e}")
+
     async def generate_content_stream(
         self,
         prompt: str,

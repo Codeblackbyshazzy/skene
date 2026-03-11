@@ -74,6 +74,44 @@ class DebugLLMClient(LLMClient):
         )
         return response
 
+    async def generate_content_with_usage(self, prompt: str) -> tuple[str, int | None]:
+        self._call_count += 1
+        call_id = self._call_count
+        ts = datetime.now().isoformat()
+
+        self._write(
+            f"\n--- Call #{call_id} | {ts} ---\n"
+            f"Provider: {self._client.get_provider_name()}\n"
+            f"Model: {self._client.get_model_name()}\n"
+            f"\n[PROMPT]\n{prompt}\n"
+        )
+        logger.debug(
+            "LLM call #{} | provider={} model={} prompt_len={}",
+            call_id,
+            self._client.get_provider_name(),
+            self._client.get_model_name(),
+            len(prompt),
+        )
+
+        start = time.monotonic()
+        content, usage = await self._client.generate_content_with_usage(prompt)
+        duration = time.monotonic() - start
+
+        token_info = ""
+        if usage:
+            inp = usage.get("input_tokens", 0)
+            out = usage.get("output_tokens", 0)
+            token_info = f" | {inp:,} in / {out:,} out"
+        self._write(f"\n[RESPONSE] ({duration:.2f}s{token_info})\n{content}\n\n--- End call #{call_id} ---\n")
+        logger.debug(
+            "LLM call #{} completed | {:.2f}s | response_len={}{}",
+            call_id,
+            duration,
+            len(content),
+            token_info,
+        )
+        return (content, usage)
+
     async def generate_content_stream(self, prompt: str) -> AsyncGenerator[str, None]:
         self._call_count += 1
         call_id = self._call_count

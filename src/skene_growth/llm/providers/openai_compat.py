@@ -77,12 +77,24 @@ class OpenAICompatibleClient(LLMClient):
         Raises:
             RuntimeError: If generation fails
         """
+        content, _ = await self.generate_content_with_usage(prompt)
+        return content
+
+    async def generate_content_with_usage(
+        self,
+        prompt: str,
+    ) -> tuple[str, dict[str, int] | None]:
+        """Generate text and return (content, usage). Usage has input_tokens, output_tokens. Returns None when not in response."""
         try:
             response = await self.client.chat.completions.create(
                 model=self.model_name,
                 messages=[{"role": "user", "content": prompt}],
             )
-            return response.choices[0].message.content.strip()
+            content = response.choices[0].message.content.strip()
+            usage = getattr(response, "usage", None)
+            if usage and hasattr(usage, "prompt_tokens") and hasattr(usage, "completion_tokens"):
+                return (content, {"input_tokens": usage.prompt_tokens, "output_tokens": usage.completion_tokens})
+            return (content, None)
         except Exception as e:
             raise RuntimeError(f"Error calling {self.get_provider_name()}: {e}")
 

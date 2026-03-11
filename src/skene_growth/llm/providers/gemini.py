@@ -125,6 +125,59 @@ class GoogleGeminiClient(LLMClient):
                     )
             raise RuntimeError(f"Error calling Google Gemini: {e}")
 
+    async def generate_content_with_usage(
+        self,
+        prompt: str,
+    ) -> tuple[str, dict[str, int] | None]:
+        """Generate text and return (content, usage). Usage has input_tokens, output_tokens. Returns None when not in response."""
+        try:
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,
+                partial(
+                    self.client.models.generate_content,
+                    model=self.model_name,
+                    contents=prompt,
+                ),
+            )
+            content = response.text.strip()
+            usage = getattr(response, "usage_metadata", None)
+            if usage and hasattr(usage, "input_token_count") and hasattr(usage, "output_token_count"):
+                return (content, {"input_tokens": usage.input_token_count, "output_tokens": usage.output_token_count})
+            return (content, None)
+        except Exception as e:
+            if self._is_rate_limit_error(e):
+                if self.no_fallback:
+                    content = await self._retry_with_backoff(prompt, stream=False)
+                    return (content, None)
+                logger.warning(
+                    f"Rate limit (429) hit on model {self.model_name}, falling back to {self.fallback_model}"
+                )
+                try:
+                    loop = asyncio.get_event_loop()
+                    response = await loop.run_in_executor(
+                        None,
+                        partial(
+                            self.client.models.generate_content,
+                            model=self.fallback_model,
+                            contents=prompt,
+                        ),
+                    )
+                    logger.info(f"Successfully generated content using fallback model {self.fallback_model}")
+                    content = response.text.strip()
+                    usage = getattr(response, "usage_metadata", None)
+                    if usage and hasattr(usage, "input_token_count") and hasattr(usage, "output_token_count"):
+                        return (
+                            content,
+                            {"input_tokens": usage.input_token_count, "output_tokens": usage.output_token_count},
+                        )
+                    return (content, None)
+                except Exception as fallback_error:
+                    raise RuntimeError(
+                        f"Error calling Google Gemini (fallback model {self.fallback_model}): {fallback_error}"
+                    )
+            raise RuntimeError(f"Error calling Google Gemini: {e}")
+
     async def generate_content_stream(
         self,
         prompt: str,
