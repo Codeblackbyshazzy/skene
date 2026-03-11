@@ -125,7 +125,7 @@ func (v *ConfigCheckView) renderList(width int) string {
 		var item string
 		if isSelected {
 			name := styles.ListItemSelected.Render(opt.name)
-			desc := lipgloss.NewStyle().Foreground(styles.Sand).PaddingLeft(2).Width(descWidth).Render(opt.desc)
+			desc := styles.AccentStyle().PaddingLeft(2).Width(descWidth).Render(opt.desc)
 			item = name + "\n" + desc
 		} else {
 			name := styles.ListItem.Render(opt.name)

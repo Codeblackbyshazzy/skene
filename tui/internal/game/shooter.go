@@ -24,14 +24,14 @@ const (
 )
 
 var (
-	styleShip     = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))
-	styleBullet   = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
-	styleEnemy    = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
-	styleTerrain  = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFA552"))
-	styleHUD      = lipgloss.NewStyle().Foreground(lipgloss.Color("255")).Bold(true)
-	styleExplo    = lipgloss.NewStyle().Foreground(lipgloss.Color("208"))
-	styleDead     = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
-	styleEnemyBul = lipgloss.NewStyle().Foreground(lipgloss.Color("201"))
+	styleShip     = lipgloss.NewStyle().Foreground(styles.GameShip)
+	styleBullet   = lipgloss.NewStyle().Foreground(styles.GameBullet)
+	styleEnemy    = lipgloss.NewStyle().Foreground(styles.GameEnemy)
+	styleTerrain  = lipgloss.NewStyle().Foreground(styles.GameTerrain)
+	styleHUD      = lipgloss.NewStyle().Foreground(styles.GameHUD).Bold(true)
+	styleExplo    = lipgloss.NewStyle().Foreground(styles.GameExplosion)
+	styleDead     = lipgloss.NewStyle().Foreground(styles.GameDead).Bold(true)
+	styleEnemyBul = lipgloss.NewStyle().Foreground(styles.GameEnemyBullet)
 )
 
 type vec2 struct{ x, y int }
@@ -638,7 +638,7 @@ func (g *Game) Render() string {
 	}
 	blankStyle := lipgloss.NewStyle()
 	if g.flashTimer > 0 {
-		blankStyle = blankStyle.Background(lipgloss.Color("#660000"))
+		blankStyle = blankStyle.Background(styles.GameFlash)
 	}
 	blank := cell{' ', blankStyle}
 	grid := make([][]cell, g.height)
@@ -761,10 +761,10 @@ func (g *Game) Render() string {
 	}
 
 	if !g.dead {
-		set(playerX-1, g.playerY-1, '/', lipgloss.NewStyle().Foreground(lipgloss.Color("39")))
+		set(playerX-1, g.playerY-1, '/', lipgloss.NewStyle().Foreground(styles.GameShip))
 		set(playerX-1, g.playerY, 'S', styleShip)
 		set(playerX, g.playerY, '►', styleShip)
-		set(playerX-1, g.playerY+1, '\\', lipgloss.NewStyle().Foreground(lipgloss.Color("39")))
+		set(playerX-1, g.playerY+1, '\\', lipgloss.NewStyle().Foreground(styles.GameShip))
 	}
 
 	var sb strings.Builder

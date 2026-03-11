@@ -176,7 +176,7 @@ func (v *AuthView) Render() string {
 
 func (v *AuthView) renderCountdown(width int) string {
 	message := styles.Body.Render(constants.AuthOpeningBrowser)
-	url := lipgloss.NewStyle().Foreground(styles.Amber).Width(width-8).Render(v.getDisplayURL())
+	url := styles.AccentStyle().Width(width-8).Render(v.getDisplayURL())
 
 	countdownText := fmt.Sprintf(constants.AuthRedirectingIn, v.countdown)
 	countdownStyled := styles.Muted.Render(countdownText)
@@ -214,7 +214,7 @@ func (v *AuthView) renderCountdown(width int) string {
 func (v *AuthView) renderWaiting(width int) string {
 	message := v.spinner.SpinnerWithText(constants.AuthWaiting)
 	subMessage := styles.Muted.Render(constants.AuthWaitingSub)
-	url := lipgloss.NewStyle().Foreground(styles.Amber).Width(width-8).Render(v.getDisplayURL())
+	url := styles.AccentStyle().Width(width-8).Render(v.getDisplayURL())
 
 	content := lipgloss.JoinVertical(
 		lipgloss.Center,
@@ -278,7 +278,7 @@ func (v *AuthView) renderFallback() string {
 
 	message := lipgloss.NewStyle().Foreground(styles.White).Width(sectionWidth-8).Render(constants.AuthFallbackMessage)
 	subMessage := lipgloss.NewStyle().Foreground(styles.MidGray).Width(sectionWidth-8).Render(constants.AuthFallbackSub)
-	hint := lipgloss.NewStyle().Foreground(styles.Amber).Width(sectionWidth-8).Render(constants.AuthFallbackHint)
+	hint := styles.AccentStyle().Width(sectionWidth-8).Render(constants.AuthFallbackHint)
 
 	content := lipgloss.JoinVertical(
 		lipgloss.Center,

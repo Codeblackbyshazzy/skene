@@ -209,8 +209,7 @@ func (b *DirBrowser) Render(width int) string {
 	}
 
 	// Path header
-	pathStyle := lipgloss.NewStyle().
-		Foreground(styles.Cream).
+	pathStyle := styles.AccentStyle().
 		Bold(true)
 
 	displayPath := b.currentPath

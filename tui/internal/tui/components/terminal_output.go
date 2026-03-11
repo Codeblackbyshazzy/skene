@@ -240,7 +240,7 @@ func (t *TerminalOutput) Render(width int) string {
 	var displayLines []string
 
 	defaultStyle := lipgloss.NewStyle().
-		Foreground(styles.Cream).
+		Foreground(styles.TextColor).
 		Width(contentWidth)
 	errorStyle := lipgloss.NewStyle().
 		Foreground(styles.Coral).
@@ -279,8 +279,7 @@ func (t *TerminalOutput) Render(width int) string {
 
 	var scrollIndicator string
 	if t.scrollOff > 0 {
-		scrollIndicator = lipgloss.NewStyle().
-			Foreground(styles.Amber).
+		scrollIndicator = styles.AccentStyle().
 			Render(fmt.Sprintf("  ↑↓ scroll • %d more below", t.scrollOff))
 	}
 

@@ -71,7 +71,7 @@ func (v *ErrorView) Render() string {
 	}
 
 	var severityIcon, severityLabel string
-	var titleColor lipgloss.Color
+	var titleColor lipgloss.TerminalColor
 	switch v.error.Severity {
 	case SeverityWarning:
 		severityIcon = "!"
