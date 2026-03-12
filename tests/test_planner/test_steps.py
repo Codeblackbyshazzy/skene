@@ -74,12 +74,7 @@ class TestParsePlanStepsWithLlm:
     async def test_raises_on_too_many_steps(self):
         llm = AsyncMock()
         llm.generate_content = AsyncMock(
-            return_value=json.dumps(
-                [
-                    {"title": f"Step {i}", "instruction": f"Do step {i}."}
-                    for i in range(5)
-                ]
-            )
+            return_value=json.dumps([{"title": f"Step {i}", "instruction": f"Do step {i}."} for i in range(5)])
         )
         with pytest.raises(PlanStepsParseError, match="Expected 1-4 steps"):
             await parse_plan_steps_with_llm(llm, "content")
