@@ -27,28 +27,30 @@ class PlanSection(BaseModel):
 
 
 class GrowthPlan(BaseModel):
-    """Complete structured council memo."""
+    """Complete structured growth plan."""
 
     executive_summary: str = Field(description="High-level summary focused on first-time activation")
-    sections: list[PlanSection] = Field(description="Numbered memo sections (1-6)")
-    technical_execution: TechnicalExecution = Field(description="Section 7: Technical Execution")
-    memo: str = Field(description="Section 8: The closing confidential engineering memo")
+    sections: list[PlanSection] = Field(description="Plan sections (dynamic, driven by step definitions)")
+    technical_execution: TechnicalExecution = Field(description="Technical Execution blueprint")
 
 
-def render_plan_to_markdown(plan: GrowthPlan, project_name: str, generated_at: str) -> str:
+def render_plan_to_markdown(plan: GrowthPlan, generated_at: str, project_name: str | None = None) -> str:
     """Render a GrowthPlan to the markdown memo format.
 
     Args:
         plan: Validated GrowthPlan instance
-        project_name: Name of the project
         generated_at: ISO timestamp string
+        project_name: Project name from manifest file (None = omit from output)
 
     Returns:
         Markdown string matching the council memo format
     """
     lines: list[str] = []
 
-    lines.append(f"# Council of Growth Engineers — {project_name}")
+    if project_name:
+        lines.append(f"# Growth Plan: {project_name} #")
+    else:
+        lines.append("# Growth Plan #")
     lines.append(f"**Generated:** {generated_at}")
     lines.append("")
     lines.append("---")
@@ -60,16 +62,18 @@ def render_plan_to_markdown(plan: GrowthPlan, project_name: str, generated_at: s
     lines.append(plan.executive_summary)
     lines.append("")
 
-    # Numbered sections (1-6)
+    # Dynamic sections
+    section_count = len(plan.sections)
+    te_number = section_count + 1
     for i, section in enumerate(plan.sections, start=1):
         lines.append(f"### {i}. {section.title}")
         lines.append("")
         lines.append(section.content)
         lines.append("")
 
-    # Section 7: Technical Execution
+    # Technical Execution
     te = plan.technical_execution
-    lines.append("### 7. Technical Execution")
+    lines.append(f"### {te_number}. Technical Execution")
     lines.append("")
     lines.append(f"**What is the next activation loop to build?**\n{te.next_build}")
     lines.append("")
@@ -82,12 +86,6 @@ def render_plan_to_markdown(plan: GrowthPlan, project_name: str, generated_at: s
     lines.append(f"**Exact Stack/Steps:**\n{te.stack_steps}")
     lines.append("")
     lines.append(f"**Sequence:**\n{te.sequence}")
-    lines.append("")
-
-    # Section 8: The Memo
-    lines.append("### 8. The Memo")
-    lines.append("")
-    lines.append(plan.memo)
     lines.append("")
 
     return "\n".join(lines)
