@@ -25,9 +25,7 @@ def _make_llm(responses: list[str]) -> AsyncMock:
     llm = AsyncMock()
     # Section steps use generate_content_with_usage
     section_responses = responses[:-1]
-    llm.generate_content_with_usage = AsyncMock(
-        side_effect=[(r, None) for r in section_responses]
-    )
+    llm.generate_content_with_usage = AsyncMock(side_effect=[(r, None) for r in section_responses])
     # Harmonization uses generate_content
     llm.generate_content = AsyncMock(return_value=responses[-1])
     return llm
@@ -126,9 +124,7 @@ class TestGenerateGrowthPlan:
         planner = Planner()
         step_calls: list[tuple[int, str, str]] = []
 
-        def on_step(
-            step_number: int, title: str, chunk: str, usage: dict | None = None
-        ) -> None:
+        def on_step(step_number: int, title: str, chunk: str, usage: dict | None = None) -> None:
             step_calls.append((step_number, title, chunk))
 
         await planner.generate_growth_plan(

@@ -117,8 +117,10 @@ class AnthropicClient(LLMClient):
         try:
             from anthropic import RateLimitError
         except ImportError:
+
             class FallbackRateLimitError(Exception):
                 """Fallback error used when anthropic.RateLimitError is unavailable."""
+
                 pass
 
             RateLimitError = FallbackRateLimitError
@@ -151,9 +153,7 @@ class AnthropicClient(LLMClient):
                 logger.info(f"Successfully generated content using fallback model {self.fallback_model}")
                 return (response.content[0].text.strip(), _usage_from_response(response))
             except Exception as fallback_error:
-                raise RuntimeError(
-                    f"Error calling Anthropic (fallback model {self.fallback_model}): {fallback_error}"
-                )
+                raise RuntimeError(f"Error calling Anthropic (fallback model {self.fallback_model}): {fallback_error}")
         except Exception as e:
             raise RuntimeError(f"Error calling Anthropic: {e}")
 

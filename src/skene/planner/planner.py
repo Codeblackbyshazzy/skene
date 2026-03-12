@@ -214,7 +214,7 @@ class Planner:
             "Identify the single most impactful activation loop to build next. Be specific: "
             "name exact logic changes, data triggers, stack steps, and a Now/Next/Later sequence.\n\n"
             "Format exact_logic, data_triggers, stack_steps, and sequence as lists "
-            "(e.g. \"- Item 1\\n- Item 2\" or \"1. First\\n2. Second\").\n\n"
+            '(e.g. "- Item 1\\n- Item 2" or "1. First\\n2. Second").\n\n'
             "Return ONLY a JSON object:\n"
             '{"next_build": "<string>", "confidence": "<string>", "exact_logic": "<string>", '
             '"data_triggers": "<string>", "stack_steps": "<string>", "sequence": "<string>"}\n\n'
