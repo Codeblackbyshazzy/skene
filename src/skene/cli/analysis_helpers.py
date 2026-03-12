@@ -497,7 +497,7 @@ async def run_generate_plan(
             # Generate memo
             memo_type = "activation memo" if activation else "growth plan"
             progress.update(task, description=f"Generating {memo_type}...")
-            from skene.planner import Planner, load_plan_steps
+            from skene.planner import DEFAULT_PLAN_STEPS, Planner, load_plan_steps
 
             planner = Planner()
 
@@ -526,7 +526,25 @@ async def run_generate_plan(
                 output_path.write_text(memo_content)
             else:
                 # Growth plan: multi-step orchestration with incremental writes
-                plan_steps = await load_plan_steps(context_dir=context_dir, llm=llm)
+                # Use base_dir for plan-steps so we search the same directory as growth-loops
+                from skene.planner import find_plan_steps_path
+                from skene.planner.steps import PlanStepsParseError
+
+                plan_steps_path = find_plan_steps_path(base_dir)
+                if plan_steps_path:
+                    console.print(f"[green]Plan steps:[/green] {plan_steps_path}")
+                    try:
+                        plan_steps = await load_plan_steps(context_dir=base_dir, llm=llm)
+                        console.print(f"[green]Inferred {len(plan_steps)} custom section(s):[/green]")
+                        for i, step in enumerate(plan_steps, 1):
+                            console.print(f"  {i}. {step.title}")
+                    except PlanStepsParseError as exc:
+                        console.print(f"[yellow]Could not parse plan-steps.md: {exc}[/yellow]")
+                        console.print("[yellow]Falling back to default sections[/yellow]")
+                        plan_steps = DEFAULT_PLAN_STEPS
+                else:
+                    plan_steps = DEFAULT_PLAN_STEPS
+                    console.print(f"[dim]No plan-steps.md found, using {len(plan_steps)} default section(s)[/dim]")
 
                 accumulated_chunks: list[str] = []
 

@@ -8,6 +8,7 @@ import pytest
 from skene.planner.steps import (
     DEFAULT_PLAN_STEPS,
     PlanStepDefinition,
+    PlanStepsParseError,
     load_plan_steps,
     load_plan_steps_file,
     parse_plan_steps_with_llm,
@@ -63,23 +64,23 @@ class TestParsePlanStepsWithLlm:
         assert steps[0].title == "Step A"
 
     @pytest.mark.asyncio
-    async def test_falls_back_on_invalid_json(self):
+    async def test_raises_on_invalid_json(self):
         llm = AsyncMock()
         llm.generate_content = AsyncMock(return_value="not json at all")
-        steps = await parse_plan_steps_with_llm(llm, "content")
-        assert steps == DEFAULT_PLAN_STEPS
+        with pytest.raises(PlanStepsParseError, match="invalid JSON"):
+            await parse_plan_steps_with_llm(llm, "content")
 
     @pytest.mark.asyncio
-    async def test_falls_back_on_too_few_steps(self):
+    async def test_raises_on_too_few_steps(self):
         llm = AsyncMock()
         llm.generate_content = AsyncMock(
             return_value=json.dumps([{"title": "Only One", "instruction": "Single step."}])
         )
-        steps = await parse_plan_steps_with_llm(llm, "content")
-        assert steps == DEFAULT_PLAN_STEPS
+        with pytest.raises(PlanStepsParseError, match="Expected 2-8 steps"):
+            await parse_plan_steps_with_llm(llm, "content")
 
     @pytest.mark.asyncio
-    async def test_falls_back_on_missing_fields(self):
+    async def test_raises_on_missing_fields(self):
         llm = AsyncMock()
         llm.generate_content = AsyncMock(
             return_value=json.dumps(
@@ -89,8 +90,15 @@ class TestParsePlanStepsWithLlm:
                 ]
             )
         )
-        steps = await parse_plan_steps_with_llm(llm, "content")
-        assert steps == DEFAULT_PLAN_STEPS
+        with pytest.raises(PlanStepsParseError, match="missing title or instruction"):
+            await parse_plan_steps_with_llm(llm, "content")
+
+    @pytest.mark.asyncio
+    async def test_raises_on_llm_failure(self):
+        llm = AsyncMock()
+        llm.generate_content = AsyncMock(side_effect=RuntimeError("Connection refused"))
+        with pytest.raises(PlanStepsParseError, match="LLM call failed"):
+            await parse_plan_steps_with_llm(llm, "content")
 
 
 class TestLoadPlanStepsFile:
