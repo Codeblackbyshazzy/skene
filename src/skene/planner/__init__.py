@@ -15,6 +15,8 @@ from skene.planner.schema import (
 from skene.planner.steps import (
     DEFAULT_PLAN_STEPS,
     PlanStepDefinition,
+    PlanStepsParseError,
+    find_plan_steps_path,
     load_plan_steps,
     load_plan_steps_file,
     parse_plan_steps_with_llm,
@@ -27,6 +29,8 @@ __all__ = [
     "PlanStepDefinition",
     "Planner",
     "TechnicalExecution",
+    "PlanStepsParseError",
+    "find_plan_steps_path",
     "load_plan_steps",
     "load_plan_steps_file",
     "parse_plan_json",

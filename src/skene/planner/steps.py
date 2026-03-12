@@ -67,9 +67,13 @@ Rules:
 - "instruction" is a 1-3 sentence instruction for the LLM that will write that section \
 (focus, what to analyze, what frameworks to apply).
 - Preserve the user's ordering and intent.
-- Return between 2 and 8 steps.
+- Return between 1 and 4 steps.
 - Do NOT include Executive Summary or Technical Execution — those are added automatically.
 """
+
+
+class PlanStepsParseError(Exception):
+    """Raised when plan-steps.md cannot be parsed into step definitions."""
 
 
 async def parse_plan_steps_with_llm(
@@ -79,65 +83,84 @@ async def parse_plan_steps_with_llm(
     """Send plan-steps.md content to the LLM to produce step definitions.
 
     The LLM interprets freeform markdown and returns a JSON array
-    of {title, instruction} objects. Falls back to DEFAULT_PLAN_STEPS
-    on parse failure.
+    of {title, instruction} objects.
 
     Args:
         llm: LLM client for generation
         file_content: Raw content of plan-steps.md
 
     Returns:
-        Parsed step definitions, or DEFAULT_PLAN_STEPS on failure
+        Parsed step definitions
+
+    Raises:
+        PlanStepsParseError: If the LLM response cannot be parsed
     """
     prompt = f"{_PARSE_STEPS_SYSTEM_PROMPT}\n\nUser's plan-steps.md content:\n\n{file_content}"
     try:
         response = await llm.generate_content(prompt)
-        text = response.strip()
-        fence_pattern = re.compile(r"^```(?:json)?\s*\n(.*?)\n```\s*$", re.DOTALL)
-        match = fence_pattern.match(text)
-        if match:
-            text = match.group(1).strip()
+    except Exception as exc:
+        raise PlanStepsParseError(f"LLM call failed: {exc}") from exc
+
+    text = response.strip()
+    fence_pattern = re.compile(r"^```(?:json)?\s*\n(.*?)\n```\s*$", re.DOTALL)
+    match = fence_pattern.match(text)
+    if match:
+        text = match.group(1).strip()
+
+    try:
         data = json.loads(text)
-        if not isinstance(data, list):
-            raise ValueError("Expected a JSON array")
-        steps = []
-        for item in data:
-            if not isinstance(item, dict):
-                raise ValueError(f"Expected dict, got {type(item)}")
-            title = item.get("title", "").strip()
-            instruction = item.get("instruction", "").strip()
-            if not title or not instruction:
-                raise ValueError(f"Step missing title or instruction: {item}")
-            steps.append(PlanStepDefinition(title=title, instruction=instruction))
-        if not (2 <= len(steps) <= 8):
-            raise ValueError(f"Expected 2-8 steps, got {len(steps)}")
-        return steps
-    except Exception:
-        return DEFAULT_PLAN_STEPS
+    except json.JSONDecodeError as exc:
+        raise PlanStepsParseError(f"LLM returned invalid JSON: {exc}") from exc
+
+    if not isinstance(data, list):
+        raise PlanStepsParseError(f"Expected JSON array, got {type(data).__name__}")
+
+    steps = []
+    for item in data:
+        if not isinstance(item, dict):
+            raise PlanStepsParseError(f"Expected dict in array, got {type(item).__name__}")
+        title = item.get("title", "").strip()
+        instruction = item.get("instruction", "").strip()
+        if not title or not instruction:
+            raise PlanStepsParseError(f"Step missing title or instruction: {item}")
+        steps.append(PlanStepDefinition(title=title, instruction=instruction))
+
+    if not (1 <= len(steps) <= 4):
+        raise PlanStepsParseError(f"Expected 1-4 steps, got {len(steps)}")
+
+    return steps
+
+
+def find_plan_steps_path(context_dir: Path | None) -> Path | None:
+    """Return path to plan-steps.md if found, else None."""
+    candidates: list[Path] = []
+    if context_dir is not None:
+        candidates.append(context_dir / "plan-steps.md")
+        candidates.append(context_dir / "skene-context" / "plan-steps.md")
+    candidates.append(Path("skene-context") / "plan-steps.md")
+
+    for path in candidates:
+        if path.exists() and path.is_file():
+            return path.resolve()
+    return None
 
 
 def load_plan_steps_file(context_dir: Path | None) -> str | None:
     """Find and read plan-steps.md content, or return None.
 
     Searches:
-    1. context_dir/plan-steps.md if context_dir is provided
-    2. ./skene-context/plan-steps.md as fallback
+    1. context_dir/plan-steps.md if context_dir is provided (when it is skene-context)
+    2. context_dir/skene-context/plan-steps.md if context_dir is project root
+    3. ./skene-context/plan-steps.md as fallback (cwd-relative)
 
     Args:
-        context_dir: Optional explicit context directory
+        context_dir: Optional explicit context directory (skene-context or project root)
 
     Returns:
         File content string, or None if not found
     """
-    candidates: list[Path] = []
-    if context_dir is not None:
-        candidates.append(context_dir / "plan-steps.md")
-    candidates.append(Path("skene-context") / "plan-steps.md")
-
-    for path in candidates:
-        if path.exists() and path.is_file():
-            return path.read_text(encoding="utf-8")
-    return None
+    path = find_plan_steps_path(context_dir)
+    return path.read_text(encoding="utf-8") if path else None
 
 
 async def load_plan_steps(
