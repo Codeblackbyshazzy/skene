@@ -124,13 +124,6 @@ class GoogleGeminiClient(LLMClient):
         except asyncio.TimeoutError:
             raise RuntimeError(f"Google Gemini request timed out after {DEFAULT_TIMEOUT:.0f}s (model: {model})")
 
-    async def generate_content(
-        self,
-        prompt: str,
-    ) -> str:
-        content, _ = await self.generate_content_with_usage(prompt)
-        return content
-
     async def generate_content_with_usage(
         self,
         prompt: str,

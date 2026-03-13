@@ -42,10 +42,6 @@ class DebugLLMClient(LLMClient):
         with open(self._log_path, "a", encoding="utf-8") as f:
             f.write(text + "\n")
 
-    async def generate_content(self, prompt: str) -> str:
-        content, _ = await self.generate_content_with_usage(prompt)
-        return content
-
     async def generate_content_with_usage(self, prompt: str) -> tuple[str, dict[str, int] | None]:
         self._call_count += 1
         call_id = self._call_count

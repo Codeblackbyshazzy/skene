@@ -60,13 +60,6 @@ class AnthropicClient(LLMClient):
         self.no_fallback = no_fallback
         self.client = AsyncAnthropic(api_key=api_key.get_secret_value(), timeout=DEFAULT_TIMEOUT)
 
-    async def generate_content(
-        self,
-        prompt: str,
-    ) -> str:
-        content, _ = await self.generate_content_with_usage(prompt)
-        return content
-
     async def generate_content_with_usage(
         self,
         prompt: str,

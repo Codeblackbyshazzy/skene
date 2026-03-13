@@ -63,25 +63,6 @@ class OpenAICompatibleClient(LLMClient):
 
         self.client = AsyncOpenAI(timeout=DEFAULT_TIMEOUT, **client_kwargs)
 
-    async def generate_content(
-        self,
-        prompt: str,
-    ) -> str:
-        """
-        Generate text from the LLM.
-
-        Args:
-            prompt: The prompt to send to the model
-
-        Returns:
-            Generated text as a string
-
-        Raises:
-            RuntimeError: If generation fails
-        """
-        content, _ = await self.generate_content_with_usage(prompt)
-        return content
-
     async def generate_content_with_usage(
         self,
         prompt: str,
