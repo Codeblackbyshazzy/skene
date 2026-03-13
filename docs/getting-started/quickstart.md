@@ -81,7 +81,7 @@ uvx skene login --upstream https://skene.ai/workspace/<my-workspace-name>
 uvx skene push
 ```
 
-To create or update the base schema without building telemetry, run `skene init` first.
+To create or update the base schema without building telemetry, run `skene push --init` first.
 
 ## What you get
 

@@ -256,7 +256,7 @@ def build_loops_to_supabase(
 
     Assumes base schema migration exists (call ensure_base_schema_migration first).
     When forward_url is provided (e.g. from --local URL),
-    appends notify_event_log override with that ingest URL. Returns migration_path.
+    appends notify_event_log override with that upstream ingest URL. Returns migration_path.
     """
     migration_sql = build_migration_sql(
         loops,

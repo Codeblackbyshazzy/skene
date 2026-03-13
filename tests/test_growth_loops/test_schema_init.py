@@ -91,7 +91,7 @@ class TestNotifyEventLogOverride:
         assert "x-skene-secret" in sql
 
     def test_notify_event_log_sql_avoids_duplicate_path_when_full_url_given(self) -> None:
-        """Full ingest URL (with db-trigger path) must not get path appended again."""
+        """Full upstream ingest URL (with db-trigger path) must not get path appended again."""
         full_url = "https://example.com/api/v1/cloud/ingest/db-trigger"
         sql = notify_event_log_sql(full_url, "secret")
         assert full_url in sql
@@ -99,7 +99,7 @@ class TestNotifyEventLogOverride:
         assert "db-trigger/api/v1" not in sql
         assert "db-trigger/db-trigger" not in sql
 
-    def test_default_local_ingest_url_in_migration(self) -> None:
+    def test_default_local_upstream_ingest_url_in_migration(self) -> None:
         """When --local is used without URL, default uses https://www.skene.ai."""
         loops = [
             {

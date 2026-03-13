@@ -186,7 +186,7 @@ uvx skene login --upstream https://skene.ai/workspace/my-app
 `push` now checks and updates the base schema on every run. If you see schema-related errors:
 
 1. Ensure `supabase/migrations/` exists (or run `push` from a directory where it can be created).
-2. Run `skene init` to create or update the schema without building telemetry.
+2. Run `skene push --init` to create or update the schema without building telemetry.
 3. Apply migrations with `supabase db push`.
 
 ## Debug mode

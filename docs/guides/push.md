@@ -37,7 +37,7 @@ Build migrations locally without pushing (no upstream required):
 uvx skene push --local
 ```
 
-Build migrations locally and bake an ingest URL into the webhook (for self-hosted or custom ingest):
+Build migrations locally and bake an upstream ingest URL into the webhook (for self-hosted or custom ingest):
 
 ```bash
 uvx skene push --local https://skene.ai --proxy-secret my-secret
@@ -52,7 +52,7 @@ uvx skene push --local https://skene.ai --proxy-secret my-secret
 | `--loop TEXT` | `-l` | Push only this loop by `loop_id`. If omitted, pushes all loops with Supabase telemetry. |
 | `--upstream TEXT` | `-u` | Upstream workspace URL (e.g. `https://skene.ai/workspace/my-app`). Resolved from `.skene.config` or this flag. |
 | `--push-only` | | Re-push current output without regenerating migrations |
-| `--local [URL]` | | Build schema + telemetry migrations locally without pushing. Optionally provide ingest URL (default: `https://www.skene.ai/api/v1/cloud/ingest/db-trigger`). |
+| `--local [URL]` | | Build schema + telemetry migrations locally without pushing. Optionally provide upstream ingest URL (default: `https://www.skene.ai/api/v1/cloud/ingest/db-trigger`). |
 | `--proxy-secret TEXT` | | Proxy secret for ingest endpoint (use with `--local URL`). Default: `YOUR_PROXY_SECRET` placeholder. |
 
 ## How it works
@@ -70,9 +70,9 @@ The schema includes:
 - `skene_growth.failed_events` — dead-letter queue for events exceeding retry limits
 - `skene_growth.enrichment_map` — rules table for metadata enrichment
 - `skene_growth.enrich_event()` — BEFORE INSERT trigger for enrichment
-- `skene_growth.notify_event_log()` — AFTER INSERT trigger that POSTs to ingest URL via pg_net
+- `skene_growth.notify_event_log()` — AFTER INSERT trigger that POSTs to upstream ingest URL via pg_net
 
-You can also run `skene init` to create or update the schema without building telemetry migrations.
+You can also run `skene push --init` to create or update the schema without building telemetry migrations.
 
 ### Step 2: Load growth loops and generate telemetry migration (unless `--push-only`)
 
@@ -98,7 +98,7 @@ When an upstream URL is configured (via `--upstream` or `.skene.config`), the co
 | `skene push` | ✓ check/update | ✓ generate | ✓ if configured |
 | `skene push --local` | ✓ check/update | ✓ generate | ✗ |
 | `skene push --push-only` | ✓ check/update | ✗ | ✓ if configured |
-| `skene init` | ✓ create/update | ✗ | ✗ |
+| `skene push --init` | ✓ create/update | ✗ | ✗ |
 
 ## Telemetry format
 

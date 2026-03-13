@@ -1,7 +1,7 @@
 """Skene Growth event_log schema and webhook. All DDL is idempotent."""
 
 # Placeholders for notify_event_log when not overridden by --local
-DEFAULT_INGEST_URL = "https://YOUR_INGEST_URL"
+DEFAULT_UPSTREAM_INGEST_URL = "https://YOUR_UPSTREAM_INGEST_URL"
 DEFAULT_PROXY_SECRET = "YOUR_PROXY_SECRET"
 
 # Base schema: tables + enrich_event + notify_event_log (with placeholders)
@@ -93,7 +93,7 @@ AS $$
 DECLARE
   payload jsonb;
   ingest_url text := '"""
-    + DEFAULT_INGEST_URL
+    + DEFAULT_UPSTREAM_INGEST_URL
     + """/api/v1/cloud/ingest/db-trigger';
   proxy_secret text := '"""
     + DEFAULT_PROXY_SECRET
@@ -139,17 +139,17 @@ def _normalize_ingest_url(url: str) -> str:
     return f"{base}{DB_TRIGGER_PATH}"
 
 
-def notify_event_log_sql(ingest_url: str, proxy_secret: str) -> str:
+def notify_event_log_sql(upstream_ingest_url: str, proxy_secret: str) -> str:
     """
-    Generate CREATE OR REPLACE for notify_event_log with given ingest URL and proxy secret.
+    Generate CREATE OR REPLACE for notify_event_log with given upstream ingest URL and proxy secret.
     Use when --local URL is provided to override the default placeholders.
     """
     # Escape single quotes for SQL string literals
-    full_url = _normalize_ingest_url(ingest_url)
+    full_url = _normalize_ingest_url(upstream_ingest_url)
     url_escaped = full_url.replace("'", "''")
     secret_escaped = proxy_secret.replace("'", "''")
     return f"""
--- Webhook override: ingest URL and proxy secret from --local
+-- Webhook override: upstream ingest URL and proxy secret from --local
 CREATE OR REPLACE FUNCTION skene_growth.notify_event_log()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = public, skene_growth, net

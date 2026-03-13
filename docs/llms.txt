@@ -38,7 +38,7 @@ skene login
 skene logout
   Log out from upstream (remove saved token).
 
-skene init [PATH]
+skene push --init [PATH]
   Create or update skene base schema migration (event_log, failed_events, enrichment_map).
 
 skene features export [PATH]
