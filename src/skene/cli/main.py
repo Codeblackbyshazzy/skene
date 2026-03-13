@@ -25,7 +25,6 @@ import click
 import typer
 from pydantic import SecretStr
 from rich.console import Console
-from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
@@ -34,8 +33,8 @@ from typer.core import TyperGroup
 from skene import __version__
 from skene.cli.analysis_helpers import (
     run_analysis,
-    run_cycle,
     run_features_analysis,
+    run_generate_plan,
     show_analysis_summary,
     show_features_summary,
 )
@@ -58,6 +57,7 @@ from skene.cli.prompt_builder import (
 )
 from skene.cli.sample_report import show_sample_report
 from skene.config import default_model_for_provider, load_config, resolve_upstream_token
+from skene.planner import find_plan_steps_path
 
 # Command order and groups for --help
 _COMMAND_ORDER = [
@@ -521,7 +521,7 @@ def plan(
         uvx skene plan --context ./my-context --api-key "your-key"
 
         # Override context file paths
-        uvx skene plan --manifest ./manifest.json --template ./template.json
+        uvx skene plan --manifest ./skene-context/growth-manifest.json --template ./skene-context/growth-template.json
 
         # Generate activation-focused plan
         uvx skene plan --activation --api-key "your-key"
@@ -550,7 +550,7 @@ def plan(
             console.print(f"[red]Error:[/red] Context path is not a directory: {context}")
             raise typer.Exit(1)
 
-    # Auto-detect manifest
+    # Auto-detect manifest (growth-manifest.json is the standard name from analyze)
     if manifest is None:
         default_paths = []
 
@@ -643,19 +643,17 @@ def plan(
     resolved_output = resolved_output.resolve()
 
     plan_type = "activation plan" if activation else "growth plan"
-    console.print(
-        Panel.fit(
-            f"[bold blue]Generating {plan_type}[/bold blue]\n"
-            f"Manifest: {manifest if manifest and manifest.exists() else 'Not provided'}\n"
-            f"Template: {template if template and template.exists() else 'Not provided'}\n"
-            f"Output: {resolved_output}\n"
-            f"Provider: {resolved_provider}\n"
-            f"Model: {resolved_model}",
-            title="skene",
-        )
+    base = context if context else Path(".")
+    default_manifest = (
+        (base / "skene-context" / "growth-manifest.json") if not context else (base / "growth-manifest.json")
     )
+    default_template = (
+        (base / "skene-context" / "growth-template.json") if not context else (base / "growth-template.json")
+    )
+    manifest_display = str(manifest.resolve()) if manifest else f"{default_manifest.resolve()} (not found)"
+    template_display = str(template.resolve()) if template else f"{default_template.resolve()} (not found)"
 
-    # Determine context directory for growth-loops loading
+    # Determine context directory for growth-loops and plan-steps
     context_dir_for_loops = None
     if context:
         context_dir_for_loops = context
@@ -673,12 +671,47 @@ def plan(
             if potential_context.exists():
                 context_dir_for_loops = potential_context
 
+    # Base dir for plan-steps (same logic as run_generate_plan)
+    base_dir_for_steps = context_dir_for_loops
+    if base_dir_for_steps is None and manifest:
+        mp = manifest.parent
+        skene_ctx = mp / "skene-context"
+        base_dir_for_steps = mp if mp.name == "skene-context" else (skene_ctx if skene_ctx.exists() else mp)
+    elif base_dir_for_steps is None and resolved_output:
+        base_dir_for_steps = (
+            resolved_output.parent
+            if resolved_output.parent.name == "skene-context"
+            else (
+                resolved_output.parent / "skene-context"
+                if (resolved_output.parent / "skene-context").exists()
+                else resolved_output.parent
+            )
+        )
+    elif base_dir_for_steps is None:
+        base_dir_for_steps = Path(".")
+
+    plan_steps_path = find_plan_steps_path(base_dir_for_steps)
+    plan_steps_display = str(plan_steps_path) if plan_steps_path else None
+
+    panel_lines = [
+        f"[bold blue]Generating {plan_type}[/bold blue]",
+        f"Manifest: {manifest_display}",
+        f"Template: {template_display}",
+        f"Output: {resolved_output}",
+        f"Provider: {resolved_provider}",
+        f"Model: {resolved_model}",
+    ]
+    if plan_steps_display:
+        panel_lines.insert(1, f"Plan steps: {plan_steps_display}")
+
+    console.print(Panel.fit("\n".join(panel_lines), title="skene"))
+
     # Resolve debug flag (CLI overrides config)
     resolved_debug = debug or config.debug
 
     # Run async cycle generation - execute and handle output
     async def execute_cycle():
-        memo_content, todo_data = await run_cycle(
+        memo_content, todo_data = await run_generate_plan(
             manifest_path=manifest,
             template_path=template,
             output_path=resolved_output,
@@ -698,56 +731,6 @@ def plan(
             raise typer.Exit(1)
 
         console.print(f"\n[green]Success![/green] Growth plan saved to: {resolved_output}")
-
-        # Print the report to terminal
-        if memo_content:
-            console.print()
-            console.print(Markdown(memo_content))
-
-        # Display implementation todo list
-        if todo_data:
-            executive_summary, todo_summary, todo_list = todo_data
-
-            if todo_list:
-                console.print("\n")
-
-                # Sort by priority (high first) for ordering, but don't display priority
-                priority_order = {"high": 0, "medium": 1, "low": 2}
-                sorted_todos = sorted(
-                    todo_list,
-                    key=lambda x: priority_order.get(x.get("priority", "medium"), 1),
-                )
-
-                # Create table with checkbox column and task column
-                todo_table = Table(show_header=False, box=None, padding=(0, 1))
-                todo_table.add_column("", style="dim", width=3)
-                todo_table.add_column("Task", style="white")
-
-                # Add executive summary as first row if available
-                if executive_summary:
-                    todo_table.add_row("", f"[bold]{executive_summary}[/bold]")
-                    todo_table.add_row("", "")  # Empty row for spacing
-
-                # Add todo summary as second row if available
-                if todo_summary:
-                    todo_table.add_row("", f"[bold]{todo_summary}[/bold]")
-                    todo_table.add_row("", "")  # Empty row for spacing
-
-                for todo in sorted_todos:
-                    task = todo.get("task", "")
-                    todo_table.add_row("[ ]", task)
-                    todo_table.add_row("", "")  # Empty row for spacing
-
-                console.print(
-                    Panel(
-                        todo_table,
-                        title="[bold yellow]Implementation Todo List[/bold yellow]",
-                        border_style="yellow",
-                        padding=(1, 2),
-                    )
-                )
-                console.print("\n[dim]Next: Use [cyan]skene build[/cyan] command to implement this[/dim]")
-            console.print("")
 
     asyncio.run(execute_cycle())
 
