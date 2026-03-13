@@ -58,13 +58,6 @@ class OpenAIClient(OpenAICompatibleClient):
             return {"output_tokens": usage.completion_tokens, "input_tokens": usage.prompt_tokens}
         return None
 
-    async def generate_content(
-        self,
-        prompt: str,
-    ) -> str:
-        content, _ = await self.generate_content_with_usage(prompt)
-        return content
-
     async def generate_content_with_usage(
         self,
         prompt: str,
@@ -74,7 +67,6 @@ class OpenAIClient(OpenAICompatibleClient):
             from openai import RateLimitError
         except ImportError:
             RateLimitError = Exception
-
         try:
             response = await self.client.chat.completions.create(
                 model=self.model_name,
