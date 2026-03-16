@@ -8,9 +8,8 @@ from typing import AsyncGenerator, Optional
 
 from pydantic import SecretStr
 
-from skene.output import debug, warning
-
 from skene.llm.base import LLMClient
+from skene.output import debug, warning
 
 # Default fallback model for rate limiting (429 errors)
 # Using stable 2.5-flash as fallback (works with both v1 and v1beta APIs)
@@ -139,9 +138,7 @@ class GoogleGeminiClient(LLMClient):
                 if self.no_fallback:
                     content = await self._retry_with_backoff(prompt, stream=False)
                     return (content, None)
-                warning(
-                    f"Rate limit (429) hit on model {self.model_name}, falling back to {self.fallback_model}"
-                )
+                warning(f"Rate limit (429) hit on model {self.model_name}, falling back to {self.fallback_model}")
                 try:
                     response = await self._call_api(self.fallback_model, prompt)
                     debug(f"Successfully generated content using fallback model {self.fallback_model}")

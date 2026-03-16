@@ -9,8 +9,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
 from skene.llm import LLMClient
-from skene.output import console
-from skene.output import error, status, success, warning
+from skene.output import console, error, status, success, warning
 
 
 async def _show_progress_indicator(stop_event: asyncio.Event) -> None:

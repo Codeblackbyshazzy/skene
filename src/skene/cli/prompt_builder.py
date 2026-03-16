@@ -9,8 +9,7 @@ import tempfile
 from pathlib import Path
 from urllib.parse import quote
 
-from skene.output import console
-from skene.output import status, warning
+from skene.output import console, status, warning
 
 
 def _load_growth_plan_json(plan_path: Path) -> dict | None:

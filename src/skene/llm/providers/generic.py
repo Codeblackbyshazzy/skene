@@ -9,9 +9,8 @@ from typing import Optional
 
 from pydantic import SecretStr
 
-from skene.output import debug
-
 from skene.llm.providers.openai_compat import OpenAICompatibleClient
+from skene.output import debug
 
 
 class GenericClient(OpenAICompatibleClient):

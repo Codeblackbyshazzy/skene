@@ -7,9 +7,8 @@ from typing import AsyncGenerator, Optional
 
 from pydantic import SecretStr
 
-from skene.output import debug, warning
-
 from skene.llm.providers.openai_compat import OpenAICompatibleClient
+from skene.output import debug, warning
 
 # Default fallback model for rate limiting (429 errors)
 DEFAULT_FALLBACK_MODEL = "gpt-4o-mini"

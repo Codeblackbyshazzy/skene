@@ -57,8 +57,7 @@ from skene.cli.prompt_builder import (
 from skene.cli.sample_report import show_sample_report
 from skene.config import default_model_for_provider, load_config, resolve_upstream_token
 from skene.growth_loops.schema_sql import DB_TRIGGER_PATH
-from skene.output import console
-from skene.output import error, success, warning
+from skene.output import console, error, success, warning
 from skene.output import status as output_status
 from skene.planner import find_plan_steps_path
 

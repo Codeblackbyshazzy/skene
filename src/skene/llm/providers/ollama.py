@@ -12,9 +12,8 @@ from typing import Optional
 
 from pydantic import SecretStr
 
-from skene.output import debug
-
 from skene.llm.providers.openai_compat import OpenAICompatibleClient
+from skene.output import debug
 
 # Default Ollama server URL
 DEFAULT_BASE_URL = "http://localhost:11434/v1"

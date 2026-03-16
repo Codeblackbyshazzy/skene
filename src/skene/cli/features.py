@@ -10,8 +10,7 @@ from skene.feature_registry import (
     export_registry_to_format,
     load_feature_registry,
 )
-from skene.output import console
-from skene.output import error, success, warning
+from skene.output import console, error, success, warning
 
 features_app = typer.Typer(help="Manage growth feature registry.")
 

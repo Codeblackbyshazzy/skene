@@ -164,9 +164,7 @@ def _validate_template_structure(template: dict[str, Any]) -> None:
             raise ValueError(f"Lifecycle '{lifecycle_name}' milestones must be an array")
 
         if len(lifecycle["milestones"]) < 3 or len(lifecycle["milestones"]) > 7:
-            warning(
-                f"Lifecycle '{lifecycle_name}' has {len(lifecycle['milestones'])} milestones (recommended: 3-7)"
-            )
+            warning(f"Lifecycle '{lifecycle_name}' has {len(lifecycle['milestones'])} milestones (recommended: 3-7)")
 
         # CRITICAL: Validate metrics array exists
         if not isinstance(lifecycle.get("metrics"), list):

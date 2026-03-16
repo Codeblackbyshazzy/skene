@@ -11,8 +11,8 @@ from pydantic import BaseModel
 
 from skene.codebase import CodebaseExplorer
 from skene.llm import LLMClient
-from skene.strategies.context import AnalysisContext, StepResult
 from skene.output import error, warning
+from skene.strategies.context import AnalysisContext, StepResult
 from skene.strategies.steps.base import AnalysisStep
 
 

@@ -10,9 +10,8 @@ from typing import Optional
 
 from pydantic import SecretStr
 
-from skene.output import debug
-
 from skene.llm.providers.openai_compat import OpenAICompatibleClient
+from skene.output import debug
 
 # Default LM Studio server URL
 DEFAULT_BASE_URL = "http://localhost:1234/v1"
