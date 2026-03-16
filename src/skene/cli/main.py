@@ -1224,18 +1224,18 @@ def push(
 
     if init:
         written = ensure_base_schema_migration(path.resolve())
-        console.print(f"[green]Schema migration:[/green] {written}")
-        console.print("[dim]Run supabase db push to apply.[/dim]")
+        output_success(f"Schema migration: {written}")
+        output_status("Run supabase db push to apply.")
         return
 
     if ingest_url and not local:
-        console.print("[red]--ingest-url can only be used with --local.[/red]")
+        output_error("--ingest-url can only be used with --local.")
         raise typer.Exit(1)
     if local and upstream:
-        console.print("[red]--local and --upstream cannot be used together.[/red]")
+        output_error("--local and --upstream cannot be used together.")
         raise typer.Exit(1)
     if local and push_only:
-        console.print("[red]--local and --push-only cannot be used together.[/red]")
+        output_error("--local and --push-only cannot be used together.")
         raise typer.Exit(1)
 
     config = load_config()
@@ -1290,16 +1290,15 @@ def push(
     secret = proxy_secret or "YOUR_PROXY_SECRET"
 
     if local and not (ingest_url and ingest_url.strip()):
-        console.print("[dim]Building migration files with default Skene.ai upstream ingest for reference.[/dim]")
-        console.print(
-            "[dim]For self-hosted trigger ingests, use: "
-            "[bold]skene push --local --ingest-url https://your-ingest.example.com[/bold].[/dim]"
+        output_status("Building migration files with default Skene.ai upstream ingest for reference.")
+        output_status(
+            "For self-hosted trigger ingests, use: skene push --local --ingest-url https://your-ingest.example.com"
         )
-        console.print("[dim]To push to upstream managed by Skene.ai, use [bold]skene login[/bold].[/dim]")
+        output_status("To push to upstream managed by Skene.ai, use skene login.")
 
     try:
         schema_path = ensure_base_schema_migration(path)
-        console.print(f"[green]Schema:[/green] {schema_path}")
+        output_success(f"Schema: {schema_path}")
 
         if not push_only:
             migration_path = build_loops_to_supabase(
