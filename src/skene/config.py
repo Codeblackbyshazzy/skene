@@ -27,6 +27,7 @@ DEFAULT_MODEL_BY_PROVIDER = {
     "anthropic": "claude-sonnet-4-5",
     "ollama": "llama3.3",
     "generic": "custom-model",
+    "skene": "auto",
 }
 
 

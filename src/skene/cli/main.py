@@ -95,6 +95,25 @@ app = typer.Typer(
 
 console = Console()
 
+_OPENAI_COMPAT_PROVIDERS = ("generic", "openai-compatible", "openai_compatible")
+_LOCAL_NO_KEY_PROVIDERS = (
+    "lmstudio",
+    "lm-studio",
+    "lm_studio",
+    "ollama",
+    *_OPENAI_COMPAT_PROVIDERS,
+)
+
+
+def _is_local_provider(provider: str) -> bool:
+    """Return True for providers that can run without a real API key."""
+    return provider.lower() in _LOCAL_NO_KEY_PROVIDERS
+
+
+def _requires_base_url(provider: str) -> bool:
+    """Return True when provider requires --base-url."""
+    return provider.lower() in _OPENAI_COMPAT_PROVIDERS
+
 
 def version_callback(value: bool):
     """Show version and exit."""
@@ -162,7 +181,7 @@ def analyze(
         None,
         "--provider",
         "-p",
-        help="LLM provider to use (openai, gemini, anthropic/claude, lmstudio, ollama, generic)",
+        help="LLM provider to use (openai, gemini, anthropic/claude, lmstudio, ollama, generic, skene)",
     ),
     model: Optional[str] = typer.Option(
         None,
@@ -174,7 +193,7 @@ def analyze(
         None,
         "--base-url",
         envvar="SKENE_BASE_URL",
-        help="Base URL for OpenAI-compatible API endpoint (required for generic provider)",
+        help="Base URL for API endpoint (required for generic; optional for skene local dev)",
     ),
     verbose: bool = typer.Option(
         False,
@@ -282,18 +301,10 @@ def analyze(
         resolved_output = Path(config.output_dir) / "growth-manifest.json"
 
     # LM Studio and Ollama don't require an API key (local servers)
-    is_local_provider = resolved_provider.lower() in (
-        "lmstudio",
-        "lm-studio",
-        "lm_studio",
-        "ollama",
-        "generic",
-        "openai-compatible",
-        "openai_compatible",
-    )
+    is_local_provider = _is_local_provider(resolved_provider)
 
-    # Generic provider requires base_url
-    if resolved_provider.lower() in ("generic", "openai-compatible", "openai_compatible"):
+    # Generic provider requires base_url; skene uses production by default
+    if _requires_base_url(resolved_provider):
         if not resolved_base_url:
             console.print("[red]Error:[/red] The 'generic' provider requires --base-url to be set.")
             raise typer.Exit(1)
@@ -463,7 +474,7 @@ def plan(
         None,
         "--provider",
         "-p",
-        help="LLM provider to use (openai, gemini, anthropic/claude, ollama)",
+        help="LLM provider to use (openai, gemini, anthropic/claude, ollama, generic, skene)",
     ),
     model: Optional[str] = typer.Option(
         None,
@@ -475,7 +486,7 @@ def plan(
         None,
         "--base-url",
         envvar="SKENE_BASE_URL",
-        help="Base URL for OpenAI-compatible API endpoint (required for generic provider)",
+        help="Base URL for API endpoint (required for generic; optional for skene local dev)",
     ),
     verbose: bool = typer.Option(
         False,
@@ -593,18 +604,10 @@ def plan(
                 break
 
     # Check API key
-    is_local_provider = resolved_provider.lower() in (
-        "lmstudio",
-        "lm-studio",
-        "lm_studio",
-        "ollama",
-        "generic",
-        "openai-compatible",
-        "openai_compatible",
-    )
+    is_local_provider = _is_local_provider(resolved_provider)
 
-    # Generic provider requires base_url
-    if resolved_provider.lower() in ("generic", "openai-compatible", "openai_compatible"):
+    # Generic provider requires base_url; skene uses production by default
+    if _requires_base_url(resolved_provider):
         if not resolved_base_url:
             console.print("[red]Error:[/red] The 'generic' provider requires --base-url to be set.")
             raise typer.Exit(1)
@@ -755,7 +758,7 @@ def chat(
         None,
         "--provider",
         "-p",
-        help="LLM provider to use (openai, gemini, anthropic/claude, ollama)",
+        help="LLM provider to use (openai, gemini, anthropic/claude, ollama, generic, skene)",
     ),
     model: Optional[str] = typer.Option(
         None,
@@ -767,7 +770,7 @@ def chat(
         None,
         "--base-url",
         envvar="SKENE_BASE_URL",
-        help="Base URL for OpenAI-compatible API endpoint (required for generic provider)",
+        help="Base URL for API endpoint (required for generic; optional for skene local dev)",
     ),
     max_steps: int = typer.Option(
         4,
@@ -804,18 +807,10 @@ def chat(
     else:
         resolved_model = config.get("model") or default_model_for_provider(resolved_provider)
 
-    is_local_provider = resolved_provider.lower() in (
-        "lmstudio",
-        "lm-studio",
-        "lm_studio",
-        "ollama",
-        "generic",
-        "openai-compatible",
-        "openai_compatible",
-    )
+    is_local_provider = _is_local_provider(resolved_provider)
 
-    # Generic provider requires base_url
-    if resolved_provider.lower() in ("generic", "openai-compatible", "openai_compatible"):
+    # Generic provider requires base_url; skene uses production by default
+    if _requires_base_url(resolved_provider):
         if not resolved_base_url:
             console.print("[red]Error:[/red] The 'generic' provider requires --base-url to be set.")
             raise typer.Exit(1)
@@ -932,7 +927,7 @@ def status(
         None,
         "--provider",
         "-p",
-        help="LLM provider: openai, gemini, anthropic, ollama (uses config if not provided)",
+        help="LLM provider: openai, gemini, anthropic, ollama, generic, skene (uses config if not provided)",
     ),
     model: Optional[str] = typer.Option(
         None,
@@ -1320,7 +1315,7 @@ def build(
         None,
         "--provider",
         "-p",
-        help="LLM provider: openai, gemini, anthropic, ollama (uses config if not provided)",
+        help="LLM provider: openai, gemini, anthropic, ollama, generic, skene (uses config if not provided)",
     ),
     model: Optional[str] = typer.Option(
         None,
@@ -1332,7 +1327,7 @@ def build(
         None,
         "--base-url",
         envvar="SKENE_BASE_URL",
-        help="Base URL for OpenAI-compatible API endpoint (required for generic provider)",
+        help="Base URL for API endpoint (required for generic; optional for skene local dev)",
     ),
     debug: bool = typer.Option(
         False,
@@ -1422,8 +1417,8 @@ async def _build_async(
     provider = provider or config.provider
     base_url = base_url or config.base_url
 
-    # Generic provider requires base_url
-    if provider and provider.lower() in ("generic", "openai-compatible", "openai_compatible"):
+    # Generic provider requires base_url; skene uses production by default
+    if provider and _requires_base_url(provider):
         if not base_url:
             console.print("[red]Error:[/red] The 'generic' provider requires --base-url to be set.")
             raise typer.Exit(1)
@@ -1439,7 +1434,7 @@ async def _build_async(
             "  4. Environment: SKENE_API_KEY\n\n"
             "Example config:\n"
             '  api_key = "your-api-key"\n'
-            '  provider = "gemini"  # or anthropic, openai, ollama\n'
+            '  provider = "gemini"  # or anthropic, openai, ollama, generic, skene\n'
         )
         raise typer.Exit(1)
     # Auto-detect plan file
@@ -1794,7 +1789,7 @@ def _run_chat_default(
         None,
         "--provider",
         "-p",
-        help="LLM provider to use (openai, gemini, anthropic/claude, ollama)",
+        help="LLM provider to use (openai, gemini, anthropic/claude, ollama, generic, skene)",
     ),
     model: Optional[str] = typer.Option(
         None,

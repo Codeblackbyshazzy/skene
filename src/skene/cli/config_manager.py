@@ -78,6 +78,9 @@ def get_provider_models(provider: str) -> list[str]:
         "generic": [
             "custom-model",
         ],
+        "skene": [
+            "auto",
+        ],
     }
     return models_by_provider.get(provider.lower(), ["gpt-4o"])
 
@@ -174,6 +177,7 @@ def interactive_config_setup() -> tuple[Path, str, str, str, str | None]:
     # Ask for provider
     console.print()
     providers = [
+        ("skene", "Skene"),
         ("openai", "OpenAI"),
         ("gemini", "Google Gemini"),
         ("anthropic", "Anthropic"),
@@ -242,7 +246,7 @@ def interactive_config_setup() -> tuple[Path, str, str, str, str | None]:
             selected_model = model_choice
             break
 
-    # Ask for base URL if generic provider
+    # Ask for base URL if provider requires or supports it
     base_url = None
     if selected_provider == "generic":
         console.print()
@@ -251,6 +255,12 @@ def interactive_config_setup() -> tuple[Path, str, str, str, str | None]:
             if base_url:
                 break
             console.print("[red]Base URL is required for the generic provider.[/red]")
+    elif selected_provider == "skene":
+        console.print()
+        base_url = Prompt.ask(
+            "[cyan]Base URL[/cyan] (optional, for local dev e.g. http://localhost:3000, Enter for production)"
+        )
+        base_url = base_url.strip() if base_url else None
 
     # Ask for API key
     console.print()
