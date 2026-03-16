@@ -23,6 +23,9 @@ from pathlib import Path
 from typing import Any, Callable
 
 from loguru import logger
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
 
 from skene.growth_loops.storage import load_existing_growth_loops
 
@@ -884,10 +887,6 @@ def print_validation_report(results: list[LoopValidationResult]) -> None:
 
     Uses the shared console from output.py for all rendering.
     """
-    from rich.panel import Panel
-    from rich.table import Table
-    from rich.text import Text
-
     from skene.output import console, warning
 
     if not results:
@@ -906,7 +905,7 @@ def print_validation_report(results: list[LoopValidationResult]) -> None:
     )
 
     for result in results:
-        _print_loop_result(result, console, Table, Text)
+        _print_loop_result(result, console)
 
     # Summary
     console.print()
@@ -920,8 +919,6 @@ def print_validation_report(results: list[LoopValidationResult]) -> None:
 def _print_loop_result(
     result: LoopValidationResult,
     console: Any,
-    Table: type,
-    Text: type,
 ) -> None:
     """Print detailed results for a single loop."""
     loop_status = "[green]COMPLETE[/green]" if result.all_passed else "[red]INCOMPLETE[/red]"
