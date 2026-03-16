@@ -1464,6 +1464,9 @@ def build(
     Configuration:
         Set api_key and provider in .skene.config or ~/.config/skene/config
     """
+    config = load_config()
+    resolved_debug = apply_verbosity(quiet, debug, config.debug)
+
     # Validate --target value if provided
     valid_targets = {"cursor", "claude", "show", "file"}
     if target is not None and target not in valid_targets:
@@ -1472,7 +1475,7 @@ def build(
 
     # Run async logic
     asyncio.run(
-        _build_async(plan, context, api_key, provider, model, debug, target, base_url, no_fallback, feature, quiet)
+        _build_async(plan, context, api_key, provider, model, resolved_debug, target, base_url, no_fallback, feature)
     )
 
 
@@ -1487,12 +1490,10 @@ async def _build_async(
     base_url: Optional[str] = None,
     no_fallback: Optional[bool] = False,
     bias_feature: Optional[str] = None,
-    quiet: bool = False,
 ):
     """Async implementation of build command."""
-    # Load config to get LLM settings
     config = load_config()
-    resolved_debug = apply_verbosity(quiet, debug, config.debug)
+    resolved_debug = debug
     api_key = api_key or config.api_key
     provider = provider or config.provider
     base_url = base_url or config.base_url
