@@ -1,7 +1,7 @@
 """
 Skene Chat Completions API client.
 
-Endpoint: POST https://skene.ai/api/v1/chat/completions
+Endpoint: POST https://www.skene.ai/api/v1/chat/completions
 Local/dev: POST http://localhost:3000/api/v1/chat/completions
 
 Workspace is derived from the API key; no slug in the URL.
@@ -18,7 +18,7 @@ from skene.llm.base import LLMClient
 DEFAULT_TIMEOUT = 900.0
 DEFAULT_TEMPERATURE = 0.7
 DEFAULT_MAX_TOKENS = 50000
-PRODUCTION_ENDPOINT = "https://skene.ai/api/v1/chat/completions"
+PRODUCTION_ENDPOINT = "https://www.skene.ai/api/v1/chat/completions"
 
 
 class SkeneClient(LLMClient):
@@ -36,7 +36,7 @@ class SkeneClient(LLMClient):
         Args:
             api_key: Skene API key (workspace-scoped, wrapped in SecretStr)
             model_name: Model ID (e.g. "google/gemini-3-flash-preview" or "auto")
-            base_url: Optional base URL for local/dev. Omit for production (skene.ai).
+            base_url: Optional base URL for local/dev. Omit for production (www.skene.ai).
         """
         self.model_name = model_name
         self.api_key = api_key.get_secret_value()
