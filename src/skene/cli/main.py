@@ -404,7 +404,6 @@ def analyze(
     asyncio.run(execute_analysis())
 
 
-
 @app.command()
 def plan(
     manifest: Optional[Path] = typer.Option(
@@ -706,7 +705,6 @@ def plan(
         success(f"Growth plan saved to: {resolved_output}")
 
     asyncio.run(execute_cycle())
-
 
 
 @app.command(rich_help_panel="manage")
