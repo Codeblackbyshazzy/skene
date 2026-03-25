@@ -215,5 +215,7 @@ def skene_growth_entry():
 from skene.cli.commands import (  # noqa: E402, F401
     config_cmd,
     login,
+    push,
+    status_cmd,
     validate,
 )
