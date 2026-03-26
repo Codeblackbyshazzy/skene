@@ -285,7 +285,6 @@ async def _build_async(
 
         # Extract loop_id and name from generated definition (in case LLM changed them)
         loop_id = loop_definition.get("loop_id", loop_id)
-        loop_name = loop_definition.get("name", loop_name)
 
         timestamped_filename = generate_timestamped_filename(loop_id)
 
