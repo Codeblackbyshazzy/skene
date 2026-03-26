@@ -89,8 +89,11 @@ def status(
     )
 
     rc = resolve_cli_config(
-        api_key=api_key, provider=provider, model=model,
-        quiet=quiet, debug=debug,
+        api_key=api_key,
+        provider=provider,
+        model=model,
+        quiet=quiet,
+        debug=debug,
     )
 
     # Resolve the context directory

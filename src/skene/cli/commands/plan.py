@@ -115,8 +115,12 @@ def plan(
         uvx skene plan --prompt "Focus on enterprise customers" --api-key "your-key"
     """
     rc = resolve_cli_config(
-        api_key=api_key, provider=provider, model=model,
-        base_url=base_url, quiet=quiet, debug=debug,
+        api_key=api_key,
+        provider=provider,
+        model=model,
+        base_url=base_url,
+        quiet=quiet,
+        debug=debug,
     )
 
     # Validate context directory if provided

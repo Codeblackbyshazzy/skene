@@ -126,8 +126,12 @@ def build(
         Set api_key and provider in .skene.config or ~/.config/skene/config
     """
     rc = resolve_cli_config(
-        api_key=api_key, provider=provider, model=model,
-        base_url=base_url, quiet=quiet, debug=debug,
+        api_key=api_key,
+        provider=provider,
+        model=model,
+        base_url=base_url,
+        quiet=quiet,
+        debug=debug,
     )
 
     # Validate --target value if provided
@@ -137,9 +141,7 @@ def build(
         raise typer.Exit(1)
 
     # Run async logic
-    asyncio.run(
-        _build_async(rc, plan, context, target, no_fallback, feature)
-    )
+    asyncio.run(_build_async(rc, plan, context, target, no_fallback, feature))
 
 
 async def _build_async(
@@ -218,8 +220,12 @@ async def _build_async(
         from skene.llm import create_llm_client
 
         llm = create_llm_client(
-            rc.provider, SecretStr(rc.api_key), rc.model,
-            base_url=rc.base_url, debug=rc.debug, no_fallback=no_fallback,
+            rc.provider,
+            SecretStr(rc.api_key),
+            rc.model,
+            base_url=rc.base_url,
+            debug=rc.debug,
+            no_fallback=no_fallback,
         )
         console.print("")
         output_status(f"Using {rc.provider} ({rc.model})")

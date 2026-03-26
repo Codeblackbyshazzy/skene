@@ -8,16 +8,16 @@ import typer
 from pydantic import SecretStr
 from rich.panel import Panel
 
-from skene.cli.app import app, resolve_cli_config
 from skene.cli.analysis_helpers import (
     run_analysis,
     run_features_analysis,
     show_analysis_summary,
     show_features_summary,
 )
+from skene.cli.app import app, resolve_cli_config
 from skene.cli.output_writers import write_growth_template, write_product_docs
 from skene.cli.sample_report import show_sample_report
-from skene.output import console, error, success, warning
+from skene.output import console, success, warning
 
 
 @app.command()
@@ -133,8 +133,12 @@ def analyze(
         uvx skene analyze . --features
     """
     rc = resolve_cli_config(
-        api_key=api_key, provider=provider, model=model,
-        base_url=base_url, quiet=quiet, debug=debug,
+        api_key=api_key,
+        provider=provider,
+        model=model,
+        base_url=base_url,
+        quiet=quiet,
+        debug=debug,
     )
 
     # Handle output path: if it's a directory, append default filename
