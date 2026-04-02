@@ -140,15 +140,14 @@ def push_to_upstream(
     api_base = _api_base_from_upstream(upstream_url)
     workspace_slug = _workspace_slug_from_url(upstream_url)
     package = build_package(project_root, engine_path=engine_path, output_dir=output_dir)
-    package_json = json.dumps(package, sort_keys=True)
-    manifest = {
-        "version": "1.0",
-        "pushed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "workspace_slug": workspace_slug,
-        "trigger_events": trigger_events,
-        "loops_count": loops_count,
-        "package_checksum": f"sha256:{_sha256_checksum(package_json)}",
-    }
+    manifest = build_push_manifest(
+        project_root=project_root,
+        workspace_slug=workspace_slug,
+        trigger_events=trigger_events,
+        loops_count=loops_count,
+        engine_path=engine_path,
+        output_dir=output_dir,
+    )
     payload = {"manifest": manifest, "package": package}
 
     url = f"{api_base.rstrip('/')}/deploys"

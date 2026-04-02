@@ -32,7 +32,6 @@ def _function_name(table: str, operation: str, loop_id: str) -> str:
 def _build_trigger_function_sql(
     *,
     loop_id: str,
-    action_name: str,
     table: str,
     operation: str,
     properties: list[str],
@@ -122,7 +121,6 @@ def extract_supabase_telemetry(loop_def: dict[str, Any]) -> list[dict[str, Any]]
 def build_migration_sql(
     loops: list[dict[str, Any]],
     *,
-    supabase_url_placeholder: str = "https://YOUR_PROJECT.supabase.co",
     forward_url: str | None = None,
     proxy_secret: str = "YOUR_PROXY_SECRET",
 ) -> str:
@@ -147,7 +145,6 @@ def build_migration_sql(
         for t in extract_supabase_telemetry(loop_def):
             table = t.get("table")
             operation = (t.get("operation") or "INSERT").upper()
-            action_name = t.get("action_name", "action")
             properties = t.get("properties") or ["id"]
 
             if not table:
@@ -159,7 +156,6 @@ def build_migration_sql(
 
             fn_sql = _build_trigger_function_sql(
                 loop_id=loop_id,
-                action_name=action_name,
                 table=table,
                 operation=operation,
                 properties=properties,
@@ -240,7 +236,7 @@ def push_to_upstream(
     features_count: int,
     *,
     output_dir: str = "./skene-context",
-) -> dict[str, Any] | None:
+) -> dict[str, Any]:
     """
     Push package (engine.yaml, feature-registry.json, trigger.sql) to upstream.
     Returns response dict on success, None on failure.
@@ -262,7 +258,6 @@ def build_loops_to_supabase(
     loops: list[dict[str, Any]],
     output_dir: Path,
     *,
-    supabase_url_placeholder: str = "https://YOUR_PROJECT.supabase.co",
     forward_url: str | None = None,
     proxy_secret: str = "YOUR_PROXY_SECRET",
 ) -> Path:
@@ -275,7 +270,6 @@ def build_loops_to_supabase(
     """
     migration_sql = build_migration_sql(
         loops,
-        supabase_url_placeholder=supabase_url_placeholder,
         forward_url=forward_url,
         proxy_secret=proxy_secret,
     )
