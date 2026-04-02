@@ -1,5 +1,5 @@
 """
-Push utilities for building Supabase migrations from growth loop telemetry.
+Push utilities for building Supabase trigger migrations from growth loop telemetry.
 
 Builds migration files that create:
 - Base schema (event_log, failed_events, enrichment_map) via init
@@ -190,7 +190,7 @@ def write_migration(
     migration_sql: str,
     output_dir: Path,
     *,
-    migration_name: str = "skene_telemetry",
+    migration_name: str = "skene_trigger",
 ) -> Path:
     """Write migration SQL to supabase/migrations/ with timestamp filename."""
     migrations_dir = output_dir / "supabase" / "migrations"
@@ -218,24 +218,22 @@ def push_to_upstream(
     project_root: Path,
     upstream_url: str,
     token: str,
-    loops: list[dict[str, Any]],
-    context: Path | None = None,
+    trigger_events: list[str],
+    features_count: int,
 ) -> dict[str, Any] | None:
     """
-    Push package (growth loops + telemetry.sql) to upstream.
+    Push package (engine.yaml + trigger.sql) to upstream.
     Returns response dict on success, None on failure.
     """
-    from skene.growth_loops.upstream import push_to_upstream
+    from skene.growth_loops.upstream import push_to_upstream as _push_to_upstream
 
-    loops_dir = (context / "growth-loops") if context else None
-    trigger_events = _trigger_events_from_loops(loops)
-    return push_to_upstream(
+    return _push_to_upstream(
         project_root=project_root,
         upstream_url=upstream_url,
         token=token,
         trigger_events=trigger_events,
-        loops_count=len(loops),
-        loops_dir=loops_dir,
+        loops_count=features_count,
+        engine_path=project_root / "skene" / "engine.yaml",
     )
 
 

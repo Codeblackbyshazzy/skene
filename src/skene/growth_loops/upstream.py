@@ -1,7 +1,7 @@
 """
 Upstream push logic for skene push.
 
-Builds a single package (growth loops + telemetry.sql) and POSTs to upstream API.
+Builds a single package (engine.yaml + trigger.sql) and POSTs to upstream API.
 """
 
 import hashlib
@@ -61,43 +61,41 @@ def validate_token(api_base: str, token: str) -> bool:
         return False
 
 
-def _find_telemetry_migration(migrations_dir: Path) -> Path | None:
-    """Find the latest telemetry migration (skene_telemetry), not the schema."""
+def _find_trigger_migration(migrations_dir: Path) -> Path | None:
+    """Find the latest trigger migration, excluding the base schema migration."""
     if not migrations_dir.exists():
         return None
+    trigger_matches = [p for p in migrations_dir.glob("*.sql") if "skene_trigger" in p.name.lower()]
+    if trigger_matches:
+        return max(trigger_matches, key=lambda p: p.name)
+
+    # Backward compatibility with older telemetry naming.
     matches = [p for p in migrations_dir.glob("*.sql") if "skene_telemetry" in p.name.lower()]
     return max(matches, key=lambda p: p.name) if matches else None
 
 
 def build_package(
     project_root: Path,
-    loops_dir: Path | None = None,
+    engine_path: Path | None = None,
 ) -> dict[str, Any]:
     """
-    Build a single package for upstream: growth_loops + telemetry_sql.
+    Build a single package for upstream: engine_yaml + trigger SQL content.
 
     Returns dict:
-        growth_loops: list of {name, content} from growth-loops/*.json
-        telemetry_sql: content of the telemetry migration, or None if missing
+        engine_yaml: content of skene/engine.yaml (or provided engine_path), or None
+        telemetry_sql: content of the trigger migration (legacy key), or None if missing
     """
-    package: dict[str, Any] = {"growth_loops": [], "telemetry_sql": None}
+    package: dict[str, Any] = {"engine_yaml": None, "telemetry_sql": None}
 
-    # Growth loops
-    resolved_loops_dir = loops_dir or project_root / "skene-context" / "growth-loops"
-    if resolved_loops_dir.exists() and resolved_loops_dir.is_dir():
-        for p in sorted(resolved_loops_dir.glob("*.json")):
-            package["growth_loops"].append(
-                {
-                    "name": p.name,
-                    "content": p.read_text(encoding="utf-8"),
-                }
-            )
+    resolved_engine_path = engine_path or project_root / "skene" / "engine.yaml"
+    if resolved_engine_path.exists() and resolved_engine_path.is_file():
+        package["engine_yaml"] = resolved_engine_path.read_text(encoding="utf-8")
 
-    # Telemetry migration only (not schema)
+    # Trigger migration only (not schema)
     migrations_dir = project_root / "supabase" / "migrations"
-    telemetry_path = _find_telemetry_migration(migrations_dir)
-    if telemetry_path:
-        package["telemetry_sql"] = telemetry_path.read_text(encoding="utf-8")
+    trigger_path = _find_trigger_migration(migrations_dir)
+    if trigger_path:
+        package["telemetry_sql"] = trigger_path.read_text(encoding="utf-8")
 
     return package
 
@@ -107,10 +105,10 @@ def build_push_manifest(
     workspace_slug: str,
     trigger_events: list[str],
     loops_count: int = 1,
-    loops_dir: Path | None = None,
+    engine_path: Path | None = None,
 ) -> dict[str, Any]:
     """Build push manifest with package checksum."""
-    package = build_package(project_root, loops_dir=loops_dir)
+    package = build_package(project_root, engine_path=engine_path)
     package_json = json.dumps(package, sort_keys=True)
     return {
         "version": "1.0",
@@ -128,16 +126,16 @@ def push_to_upstream(
     token: str,
     trigger_events: list[str],
     loops_count: int = 1,
-    loops_dir: Path | None = None,
+    engine_path: Path | None = None,
 ) -> dict[str, Any]:
     """
-    Push a single package (growth loops + telemetry.sql) to upstream API.
+    Push a single package (engine.yaml + trigger.sql) to upstream API.
 
     Returns dict: on success {"ok": True, **response}; on failure {"ok": False, "error": str}.
     """
     api_base = _api_base_from_upstream(upstream_url)
     workspace_slug = _workspace_slug_from_url(upstream_url)
-    package = build_package(project_root, loops_dir=loops_dir)
+    package = build_package(project_root, engine_path=engine_path)
     package_json = json.dumps(package, sort_keys=True)
     manifest = {
         "version": "1.0",
