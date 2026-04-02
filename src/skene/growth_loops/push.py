@@ -186,11 +186,29 @@ def build_migration_sql(
     return migration.strip()
 
 
+def find_trigger_migration(migrations_dir: Path) -> Path | None:
+    """Find the latest telemetry trigger migration (excludes base schema)."""
+    if not migrations_dir.exists():
+        return None
+    candidates: list[Path] = []
+    for p in migrations_dir.glob("*.sql"):
+        n = p.name.lower()
+        if "skene_growth_schema" in n:
+            continue
+        if n.endswith("_skene_triggers.sql"):
+            candidates.append(p)
+        elif "skene_trigger" in n:
+            candidates.append(p)
+        elif "skene_telemetry" in n:
+            candidates.append(p)
+    return max(candidates, key=lambda q: q.name) if candidates else None
+
+
 def write_migration(
     migration_sql: str,
     output_dir: Path,
     *,
-    migration_name: str = "skene_trigger",
+    migration_name: str = "skene_triggers",
 ) -> Path:
     """Write migration SQL to supabase/migrations/ with timestamp filename."""
     migrations_dir = output_dir / "supabase" / "migrations"

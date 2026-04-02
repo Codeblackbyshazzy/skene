@@ -157,4 +157,4 @@ class TestEngineSourceAndAdapter:
         loops = engine_features_to_loop_definitions(doc)
         migration_path = build_loops_to_supabase(loops, tmp_path)
         assert migration_path.exists()
-        assert "skene_trigger" in migration_path.name
+        assert migration_path.name.endswith("_skene_triggers.sql")

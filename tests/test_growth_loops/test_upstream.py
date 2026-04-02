@@ -34,7 +34,7 @@ class TestBuildPackage:
         (tmp_path / "skene").mkdir(parents=True)
         (tmp_path / "skene" / "engine.yaml").write_text("version: 1\nsubjects: []\nfeatures: []\n")
         (tmp_path / "supabase" / "migrations").mkdir(parents=True)
-        trigger_sql = tmp_path / "supabase" / "migrations" / "20260304151537_skene_trigger.sql"
+        trigger_sql = tmp_path / "supabase" / "migrations" / "20260304151537_skene_triggers.sql"
         trigger_sql.write_text("CREATE TRIGGER")
 
         package = build_package(tmp_path)
@@ -44,7 +44,7 @@ class TestBuildPackage:
     def test_package_excludes_schema_migration(self, tmp_path: Path):
         (tmp_path / "supabase" / "migrations").mkdir(parents=True)
         (tmp_path / "supabase" / "migrations" / "20260201000000_skene_growth_schema.sql").write_text("CREATE SCHEMA")
-        trigger_sql = tmp_path / "supabase" / "migrations" / "20260304151537_skene_trigger.sql"
+        trigger_sql = tmp_path / "supabase" / "migrations" / "20260304151537_skene_triggers.sql"
         trigger_sql.write_text("CREATE TRIGGER")
 
         package = build_package(tmp_path)
@@ -53,8 +53,8 @@ class TestBuildPackage:
 
     def test_package_uses_latest_trigger_migration(self, tmp_path: Path):
         (tmp_path / "supabase" / "migrations").mkdir(parents=True)
-        (tmp_path / "supabase" / "migrations" / "20260218164139_skene_trigger.sql").write_text("-- older")
-        (tmp_path / "supabase" / "migrations" / "20260304151537_skene_trigger.sql").write_text("-- latest")
+        (tmp_path / "supabase" / "migrations" / "20260218164139_skene_triggers.sql").write_text("-- older")
+        (tmp_path / "supabase" / "migrations" / "20260304151537_skene_triggers.sql").write_text("-- latest")
 
         package = build_package(tmp_path)
         assert package["telemetry_sql"] == "-- latest"

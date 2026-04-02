@@ -12,6 +12,8 @@ from typing import Any
 
 import httpx
 
+from skene.growth_loops.push import find_trigger_migration
+
 
 def _api_base_from_upstream(upstream_url: str) -> str:
     """Resolve API base URL from upstream workspace URL."""
@@ -61,19 +63,6 @@ def validate_token(api_base: str, token: str) -> bool:
         return False
 
 
-def _find_trigger_migration(migrations_dir: Path) -> Path | None:
-    """Find the latest trigger migration, excluding the base schema migration."""
-    if not migrations_dir.exists():
-        return None
-    trigger_matches = [p for p in migrations_dir.glob("*.sql") if "skene_trigger" in p.name.lower()]
-    if trigger_matches:
-        return max(trigger_matches, key=lambda p: p.name)
-
-    # Backward compatibility with older telemetry naming.
-    matches = [p for p in migrations_dir.glob("*.sql") if "skene_telemetry" in p.name.lower()]
-    return max(matches, key=lambda p: p.name) if matches else None
-
-
 def build_package(
     project_root: Path,
     engine_path: Path | None = None,
@@ -91,9 +80,8 @@ def build_package(
     if resolved_engine_path.exists() and resolved_engine_path.is_file():
         package["engine_yaml"] = resolved_engine_path.read_text(encoding="utf-8")
 
-    # Trigger migration only (not schema)
     migrations_dir = project_root / "supabase" / "migrations"
-    trigger_path = _find_trigger_migration(migrations_dir)
+    trigger_path = find_trigger_migration(migrations_dir)
     if trigger_path:
         package["telemetry_sql"] = trigger_path.read_text(encoding="utf-8")
 

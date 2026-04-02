@@ -118,6 +118,13 @@ def validate_engine(project_root: Path) -> EngineValidationResult:
             if expected_trigger in content and expected_function in content:
                 matched_files.append(migration_path.name)
 
+        if matched_files:
+            latest = max(matched_files)
+            rest = len(matched_files) - 1
+            found_detail = f"Found in: {latest}" + (f" (+{rest})" if rest else "")
+        else:
+            found_detail = f"Missing trigger/function: {expected_trigger} / {expected_function}"
+
         result.feature_checks.append(
             EngineFeatureCheck(
                 key=feature.key,
@@ -126,11 +133,7 @@ def validate_engine(project_root: Path) -> EngineValidationResult:
                 action_required=True,
                 source_valid=True,
                 migration_found=bool(matched_files),
-                detail=(
-                    f"Found in: {', '.join(matched_files)}"
-                    if matched_files
-                    else f"Missing trigger/function: {expected_trigger} / {expected_function}"
-                ),
+                detail=found_detail,
             )
         )
 

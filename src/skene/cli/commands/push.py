@@ -7,7 +7,7 @@ import typer
 from skene.cli.app import app, resolve_cli_config
 from skene.config import resolve_upstream_token
 from skene.engine import collect_engine_trigger_events, default_engine_path, load_engine_document
-from skene.growth_loops.push import push_to_upstream
+from skene.growth_loops.push import find_trigger_migration, push_to_upstream
 from skene.output import error, success, warning
 from skene.output import status as output_status
 
@@ -109,17 +109,7 @@ def push(
         raise typer.Exit(1)
 
     migrations_dir = project_root / "supabase" / "migrations"
-    trigger_path = (
-        next((p for p in sorted(migrations_dir.glob("*.sql")) if "skene_trigger" in p.name.lower()), None)
-        if migrations_dir.exists()
-        else None
-    )
-    # Backward compatibility with older telemetry migration naming.
-    if trigger_path is None and migrations_dir.exists():
-        trigger_path = next(
-            (p for p in sorted(migrations_dir.glob("*.sql")) if "skene_telemetry" in p.name.lower()),
-            None,
-        )
+    trigger_path = find_trigger_migration(migrations_dir)
     if trigger_path is None:
         error(
             "No trigger migration found in supabase/migrations.\n"
