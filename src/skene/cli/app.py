@@ -7,7 +7,6 @@ helper (ResolvedConfig), and registers all command modules.
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 
 import click
@@ -98,6 +97,7 @@ def _resolve_base_url(
     provider: str,
     cli_base_url: str | None,
     merged_config_base_url: str | None,
+    base_url_from_env: bool,
 ) -> str | None:
     """
     Resolve LLM base URL.
@@ -113,7 +113,7 @@ def _resolve_base_url(
         return cli
 
     if p == "skene":
-        if os.environ.get("SKENE_BASE_URL", "").strip():
+        if base_url_from_env:
             return merged_config_base_url
         if _project_config_defines_base_url():
             return merged_config_base_url
@@ -161,6 +161,7 @@ def resolve_cli_config(
         provider=resolved_provider,
         cli_base_url=base_url,
         merged_config_base_url=config.base_url,
+        base_url_from_env=config.base_url_from_skene_env,
     )
     resolved_model = model or config.get("model") or default_model_for_provider(resolved_provider)
     resolved_api_key = api_key or config.api_key

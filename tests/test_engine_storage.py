@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 from skene.engine import (
     EngineDocument,
     engine_features_to_loop_definitions,
@@ -15,6 +17,7 @@ from skene.growth_loops.push import build_loops_to_supabase
 
 class TestEngineRoundTrip:
     def test_write_and_load_engine(self, tmp_path: Path):
+        """Writes engine.yaml and loads it back without data loss."""
         engine_path = tmp_path / "skene" / "engine.yaml"
         doc = EngineDocument.model_validate(
             {
@@ -39,8 +42,8 @@ class TestEngineRoundTrip:
                 ],
             }
         )
-        write_engine_document(engine_path, doc)
-        loaded = load_engine_document(engine_path)
+        write_engine_document(engine_path, doc, project_root=tmp_path)
+        loaded = load_engine_document(engine_path, project_root=tmp_path)
         assert loaded.version == 1
         assert loaded.subjects[0].key == "user"
         assert loaded.features[0].key == "welcome_email"
@@ -48,6 +51,7 @@ class TestEngineRoundTrip:
 
 class TestEngineMerge:
     def test_merge_upserts_by_key(self):
+        """Merges delta records by key while preserving deterministic ordering."""
         existing = EngineDocument.model_validate(
             {
                 "version": 1,
@@ -97,11 +101,13 @@ class TestEngineMerge:
 
 class TestEngineSourceAndAdapter:
     def test_parse_source_to_db_event(self):
+        """Parses valid sources and rejects malformed source strings."""
         assert parse_source_to_db_event("public.documents.insert") == ("public", "documents", "INSERT")
         assert parse_source_to_db_event("public.documents.UPDATE") == ("public", "documents", "UPDATE")
         assert parse_source_to_db_event("invalid-source") is None
 
     def test_engine_features_to_loop_definitions_filters_by_action(self):
+        """Converts only actionable engine features into loop definitions."""
         doc = EngineDocument.model_validate(
             {
                 "version": 1,
@@ -137,6 +143,7 @@ class TestEngineSourceAndAdapter:
         assert telemetry["properties"] == ["id", "owner_id"]
 
     def test_build_loops_to_supabase_writes_migration_file(self, tmp_path: Path):
+        """Builds a Supabase trigger migration file from actionable loops."""
         doc = EngineDocument.model_validate(
             {
                 "version": 1,
@@ -158,3 +165,22 @@ class TestEngineSourceAndAdapter:
         migration_path = build_loops_to_supabase(loops, tmp_path)
         assert migration_path.exists()
         assert migration_path.name.endswith("_skene_triggers.sql")
+
+
+class TestEnginePathSafety:
+    def test_load_rejects_paths_outside_project_root(self, tmp_path: Path):
+        """Rejects engine loads that resolve outside the provided project root."""
+        outside_engine_path = tmp_path.parent / "external" / "engine.yaml"
+        outside_engine_path.parent.mkdir(parents=True, exist_ok=True)
+        outside_engine_path.write_text("version: 1\nsubjects: []\nfeatures: []\n", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="escapes project root"):
+            load_engine_document(outside_engine_path, project_root=tmp_path)
+
+    def test_write_rejects_paths_outside_project_root(self, tmp_path: Path):
+        """Rejects engine writes that resolve outside the provided project root."""
+        outside_engine_path = tmp_path.parent / "external-write" / "engine.yaml"
+        doc = EngineDocument.model_validate({"version": 1, "subjects": [], "features": []})
+
+        with pytest.raises(ValueError, match="escapes project root"):
+            write_engine_document(outside_engine_path, doc, project_root=tmp_path)

@@ -144,7 +144,7 @@ def push(
         success(f"Schema: {schema_path}")
 
     try:
-        engine_doc = load_engine_document(engine_path)
+        engine_doc = load_engine_document(engine_path, project_root=project_root)
         trigger_events = collect_engine_trigger_events(engine_doc)
 
         result = push_to_upstream(

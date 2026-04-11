@@ -371,7 +371,7 @@ def merge_registry_and_enrich_manifest(
         engine_rows = []
         try:
             project_root = _project_root_from_context(context_dir)
-            engine_doc = load_engine_document(default_engine_path(project_root))
+            engine_doc = load_engine_document(default_engine_path(project_root), project_root=project_root)
             engine_rows = _engine_summary_rows(engine_doc)
         except Exception:
             engine_rows = []

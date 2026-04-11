@@ -51,11 +51,12 @@ class EngineValidationResult:
 
 
 def _read_migration_files(project_root: Path) -> list[tuple[Path, str]]:
-    migrations_dir = project_root / "supabase" / "migrations"
+    migrations_dir = (project_root / "supabase" / "migrations").resolve()
     if not migrations_dir.exists():
         return []
     files = sorted(migrations_dir.glob("*.sql"))
-    return [(path, path.read_text(encoding="utf-8")) for path in files]
+    safe_files = [path for path in files if path.resolve().is_relative_to(migrations_dir)]
+    return [(path, path.read_text(encoding="utf-8")) for path in safe_files]
 
 
 def validate_engine(project_root: Path) -> EngineValidationResult:
@@ -69,7 +70,7 @@ def validate_engine(project_root: Path) -> EngineValidationResult:
         return result
 
     try:
-        engine_doc = load_engine_document(engine_path)
+        engine_doc = load_engine_document(engine_path, project_root=project_root)
     except Exception as exc:
         result.errors.append(f"Failed to parse engine.yaml: {exc}")
         return result

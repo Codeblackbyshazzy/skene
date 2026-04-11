@@ -1,6 +1,5 @@
 """Analysis execution and summary utilities."""
 
-import asyncio
 import json
 from pathlib import Path
 from typing import Any, Optional
@@ -10,6 +9,7 @@ from rich.table import Table
 
 from skene.llm import LLMClient
 from skene.output import console, error, status, success, warning
+from skene.progress import run_with_progress
 
 
 def _resolve_project_root(base_dir: Path) -> Path:
@@ -28,7 +28,7 @@ def _load_engine_context(project_root: Path) -> tuple[str, list[dict[str, str]]]
     from skene.engine import default_engine_path, format_engine_summary, load_engine_document
     from skene.feature_registry import derive_feature_id
 
-    engine_doc = load_engine_document(default_engine_path(project_root))
+    engine_doc = load_engine_document(default_engine_path(project_root), project_root=project_root)
     summary = format_engine_summary(engine_doc)
     rows: list[dict[str, str]] = []
     for feature in engine_doc.features:
@@ -41,23 +41,6 @@ def _load_engine_context(project_root: Path) -> tuple[str, list[dict[str, str]]]
             }
         )
     return summary, rows
-
-
-async def _show_progress_indicator(stop_event: asyncio.Event) -> None:
-    """Show progress indicator with filled boxes every second."""
-    count = 0
-    while not stop_event.is_set():
-        count += 1
-        # Print filled box (█) every second
-        console.print("[cyan]█[/cyan]", end="")
-        try:
-            await asyncio.wait_for(stop_event.wait(), timeout=1.0)
-            break
-        except asyncio.TimeoutError:
-            continue
-    # Print newline when done
-    if count > 0:
-        console.print()
 
 
 def json_serializer(obj: Any) -> str:
@@ -476,23 +459,16 @@ async def run_generate_plan(
             growth_plan = None
             tokens_used: list[dict[str, int]] = []
             if activation:
-                # Activation memo: single LLM call with progress spinner
-                stop_event = asyncio.Event()
-                progress_task = asyncio.create_task(_show_progress_indicator(stop_event))
-                try:
-                    memo_content = await planner.generate_activation_memo(
+                # Activation memo: single LLM call with shared progress indicator
+                memo_content = await run_with_progress(
+                    planner.generate_activation_memo(
                         llm=llm,
                         manifest_data=manifest_data,
                         template_data=template_data,
                         engine_summary=engine_summary,
                         user_prompt=user_prompt,
                     )
-                finally:
-                    stop_event.set()
-                    try:
-                        await progress_task
-                    except Exception:
-                        pass
+                )
                 output_path.write_text(memo_content)
             else:
                 # Growth plan: multi-step orchestration with incremental writes

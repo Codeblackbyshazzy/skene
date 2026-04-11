@@ -282,7 +282,7 @@ async def _build_async(
 
         ensure_engine_dir(project_root)
         engine_path = default_engine_path(project_root)
-        existing_engine = load_engine_document(engine_path)
+        existing_engine = load_engine_document(engine_path, project_root=project_root)
 
         features = load_features_for_build(base_output_dir)
         output_status("Generating engine delta")
@@ -296,7 +296,7 @@ async def _build_async(
             bias_feature_name=bias_feature,
         )
         merged_engine = merge_engine_documents(existing_engine, engine_delta)
-        write_engine_document(engine_path, merged_engine)
+        write_engine_document(engine_path, merged_engine, project_root=project_root)
         output_status(f"Updated engine file: {engine_path}")
 
         registry_output_path = base_output_dir / "growth-manifest.json"

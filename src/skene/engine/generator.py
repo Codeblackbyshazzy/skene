@@ -6,6 +6,9 @@ import re
 from pathlib import Path
 from typing import Any
 
+import aiofiles
+import aiofiles.os
+
 from skene.engine.storage import (
     EngineDocument,
     format_engine_summary,
@@ -33,19 +36,30 @@ def _resolve_schema_path(project_root: Path) -> Path | None:
     return None
 
 
-def _load_schema_context(project_root: Path) -> tuple[str, str]:
+async def _resolve_schema_path_async(project_root: Path) -> Path | None:
+    """Resolve schema file from skene/ or skene-context/ folders asynchronously."""
+    for parts in _SCHEMA_CANDIDATE_PATHS:
+        candidate = project_root.joinpath(*parts)
+        candidate_str = str(candidate)
+        if await aiofiles.os.path.exists(candidate_str) and await aiofiles.os.path.isfile(candidate_str):
+            return candidate
+    return None
+
+
+async def _load_schema_context(project_root: Path) -> tuple[str, str]:
     """
     Load schema content for engine delta prompting.
 
     Returns a tuple of (schema_source, schema_content).
     """
-    schema_path = _resolve_schema_path(project_root)
+    schema_path = await _resolve_schema_path_async(project_root)
     if schema_path is None:
         warning(SCHEMA_NOT_FOUND_WARNING)
         return ("not found", "")
 
     try:
-        schema_content = schema_path.read_text(encoding="utf-8").strip()
+        async with aiofiles.open(schema_path, "r", encoding="utf-8") as schema_file:
+            schema_content = (await schema_file.read()).strip()
     except Exception as exc:
         warning(f"Failed to read schema file at {schema_path}: {exc}")
         return (str(schema_path), "")
@@ -148,7 +162,7 @@ async def generate_engine_delta_with_llm(
             context_parts.append(f"## {key}\n{value}")
     execution_context = "\n\n".join(context_parts) if context_parts else "(No technical execution context provided.)"
 
-    schema_source, schema_context = _load_schema_context(codebase_path)
+    schema_source, schema_context = await _load_schema_context(codebase_path)
 
     registry_context = _format_registry_features_for_prompt(registry_features or [])
     engine_context = format_engine_summary(existing_engine)

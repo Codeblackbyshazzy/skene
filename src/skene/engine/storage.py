@@ -23,8 +23,8 @@ class EngineAction(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
-    use: str
-    config: dict[str, Any] = Field(default_factory=dict)
+    use: str = Field(..., description="Action handler identifier (for example: email, webhook, queue).")
+    config: dict[str, Any] = Field(default_factory=dict, description="Action-specific configuration payload.")
 
 
 class SubjectStateAnalysis(BaseModel):
@@ -32,12 +32,15 @@ class SubjectStateAnalysis(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
-    lifecycle_subject: str | None = None
-    subject_id_path: str | None = None
-    action_target_path: str | None = None
-    state: Any | None = None
-    record_predicates: list[Any] = Field(default_factory=list)
-    analysis_notes: str | None = None
+    lifecycle_subject: str | None = Field(default=None, description="Subject key used for lifecycle ownership.")
+    subject_id_path: str | None = Field(default=None, description="Record path used as the subject identifier.")
+    action_target_path: str | None = Field(default=None, description="Record path targeted by the action.")
+    state: Any | None = Field(default=None, description="Optional state snapshot used by the feature.")
+    record_predicates: list[Any] = Field(
+        default_factory=list,
+        description="Optional predicates used to filter matching records.",
+    )
+    analysis_notes: str | None = Field(default=None, description="Freeform notes explaining matching assumptions.")
 
 
 class EngineSubject(BaseModel):
@@ -45,9 +48,9 @@ class EngineSubject(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
-    key: str
-    table: str
-    kind: str
+    key: str = Field(..., description="Stable unique subject key.")
+    table: str = Field(..., description="Database table for this subject (schema.table).")
+    kind: str = Field(..., description="Subject role/category such as actor or entity.")
 
 
 class EngineFeature(BaseModel):
@@ -55,13 +58,16 @@ class EngineFeature(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
-    key: str
-    name: str
-    source: str
-    how_it_works: str
-    match_intent: str = ""
-    subject_state_analysis: SubjectStateAnalysis = Field(default_factory=SubjectStateAnalysis)
-    action: EngineAction | None = None
+    key: str = Field(..., description="Stable unique feature key.")
+    name: str = Field(..., description="Human-readable feature name.")
+    source: str = Field(..., description="Trigger source in schema.table.operation form.")
+    how_it_works: str = Field(..., description="Short explanation of the feature behavior.")
+    match_intent: str = Field(default="", description="Hints for source and field matching logic.")
+    subject_state_analysis: SubjectStateAnalysis = Field(
+        default_factory=SubjectStateAnalysis,
+        description="Subject-state mapping details for lifecycle and targeting.",
+    )
+    action: EngineAction | None = Field(default=None, description="Optional action definition for runtime execution.")
 
 
 class EngineDocument(BaseModel):
@@ -69,9 +75,9 @@ class EngineDocument(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
-    version: int = 1
-    subjects: list[EngineSubject] = Field(default_factory=list)
-    features: list[EngineFeature] = Field(default_factory=list)
+    version: int = Field(default=1, description="Engine schema version.")
+    subjects: list[EngineSubject] = Field(default_factory=list, description="Declared subjects in engine.yaml.")
+    features: list[EngineFeature] = Field(default_factory=list, description="Declared features in engine.yaml.")
 
 
 def default_engine_dir(project_root: Path) -> Path:
@@ -111,6 +117,16 @@ def empty_engine_document() -> EngineDocument:
     return EngineDocument(version=1, subjects=[], features=[])
 
 
+def _assert_within_project_root(engine_path: Path, project_root: Path | None) -> None:
+    """Ensure an engine path remains within the resolved project root."""
+    if project_root is None:
+        return
+    resolved_root = project_root.resolve()
+    resolved_engine_path = engine_path.resolve()
+    if not resolved_engine_path.is_relative_to(resolved_root):
+        raise ValueError(f"Engine path escapes project root: {engine_path}")
+
+
 def normalize_engine_payload(payload: dict[str, Any]) -> EngineDocument:
     """Normalize an untrusted payload into a validated engine document."""
     if not isinstance(payload, dict):
@@ -128,8 +144,9 @@ def normalize_engine_payload(payload: dict[str, Any]) -> EngineDocument:
     return _validate_unique_keys(doc)
 
 
-def load_engine_document(engine_path: Path) -> EngineDocument:
+def load_engine_document(engine_path: Path, *, project_root: Path | None = None) -> EngineDocument:
     """Load engine.yaml from disk, returning an empty document if it does not exist."""
+    _assert_within_project_root(engine_path, project_root)
     if not engine_path.exists():
         return empty_engine_document()
 
@@ -141,8 +158,9 @@ def load_engine_document(engine_path: Path) -> EngineDocument:
     return normalize_engine_payload(raw)
 
 
-def write_engine_document(engine_path: Path, doc: EngineDocument) -> Path:
+def write_engine_document(engine_path: Path, doc: EngineDocument, *, project_root: Path | None = None) -> Path:
     """Write a validated engine document to engine.yaml."""
+    _assert_within_project_root(engine_path, project_root)
     validated = _validate_unique_keys(doc)
     engine_path.parent.mkdir(parents=True, exist_ok=True)
     data = validated.model_dump(mode="json")
