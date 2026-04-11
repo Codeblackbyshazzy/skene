@@ -9,6 +9,7 @@ from pathlib import Path
 from rich.table import Table
 
 from skene.engine import default_engine_path, load_engine_document, parse_source_to_db_event
+from skene.growth_loops.push import telemetry_trigger_name_slug
 from skene.output import console
 
 
@@ -95,7 +96,7 @@ def validate_engine(project_root: Path) -> EngineValidationResult:
             )
             continue
 
-        _, table, operation = parsed
+        schema, table, operation = parsed
         if not action_required:
             result.feature_checks.append(
                 EngineFeatureCheck(
@@ -111,8 +112,9 @@ def validate_engine(project_root: Path) -> EngineValidationResult:
             continue
 
         safe_key = _sanitize_feature_key(feature.key)
-        expected_trigger = f"skene_growth_trg_{table}_{operation}_{safe_key}"
-        expected_function = f"skene_growth_fn_{table}_{operation}_{safe_key}"
+        slug = telemetry_trigger_name_slug(schema, table)
+        expected_trigger = f"skene_growth_trg_{slug}_{operation}_{safe_key}"
+        expected_function = f"skene_growth_fn_{slug}_{operation}_{safe_key}"
 
         matched_files: list[str] = []
         for migration_path, content in migration_files:

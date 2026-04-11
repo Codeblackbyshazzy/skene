@@ -138,9 +138,34 @@ class TestEngineSourceAndAdapter:
         assert len(loops) == 1
         assert loops[0]["loop_id"] == "db_trigger_feature"
         telemetry = loops[0]["requirements"]["telemetry"][0]
+        assert telemetry["schema"] == "public"
         assert telemetry["table"] == "documents"
         assert telemetry["operation"] == "INSERT"
         assert telemetry["properties"] == ["id", "owner_id"]
+
+    def test_engine_features_to_loop_definitions_preserves_non_public_schema(self):
+        """Includes schema in telemetry so migrations target the correct relation."""
+        doc = EngineDocument.model_validate(
+            {
+                "version": 1,
+                "subjects": [{"key": "user", "table": "auth.users", "kind": "actor"}],
+                "features": [
+                    {
+                        "key": "auth_user_hook",
+                        "name": "Auth User Hook",
+                        "source": "auth.users.insert",
+                        "how_it_works": "Track new auth users",
+                        "match_intent": "auth users",
+                        "subject_state_analysis": {"subject_id_path": "id"},
+                        "action": {"use": "email", "config": {}},
+                    }
+                ],
+            }
+        )
+        loops = engine_features_to_loop_definitions(doc)
+        telemetry = loops[0]["requirements"]["telemetry"][0]
+        assert telemetry["schema"] == "auth"
+        assert telemetry["table"] == "users"
 
     def test_build_loops_to_supabase_writes_migration_file(self, tmp_path: Path):
         """Builds a Supabase trigger migration file from actionable loops."""
@@ -165,6 +190,34 @@ class TestEngineSourceAndAdapter:
         migration_path = build_loops_to_supabase(loops, tmp_path)
         assert migration_path.exists()
         assert migration_path.name.endswith("_skene_triggers.sql")
+        sql = migration_path.read_text(encoding="utf-8")
+        assert 'ON "public"."documents"' in sql
+        assert "public.public.documents" not in sql
+
+    def test_build_loops_to_supabase_qualifies_non_public_schema(self, tmp_path: Path):
+        """Trigger DDL targets schema.table, not public.<table>, for non-public sources."""
+        doc = EngineDocument.model_validate(
+            {
+                "version": 1,
+                "subjects": [],
+                "features": [
+                    {
+                        "key": "auth_hook",
+                        "name": "Auth Hook",
+                        "source": "auth.users.insert",
+                        "how_it_works": "Hook",
+                        "match_intent": "auth",
+                        "subject_state_analysis": {"subject_id_path": "id"},
+                        "action": {"use": "email", "config": {}},
+                    }
+                ],
+            }
+        )
+        loops = engine_features_to_loop_definitions(doc)
+        migration_path = build_loops_to_supabase(loops, tmp_path)
+        sql = migration_path.read_text(encoding="utf-8")
+        assert 'ON "auth"."users"' in sql
+        assert "skene_growth_trg_auth_users_INSERT_auth_hook" in sql
 
 
 class TestEnginePathSafety:

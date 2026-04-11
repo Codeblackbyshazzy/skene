@@ -17,21 +17,45 @@ BASE_SCHEMA_MIGRATION_PREFIX = "20260201000000"
 BASE_SCHEMA_MIGRATION_NAME = "skene_growth_schema"
 
 
-def _trigger_name(table: str, operation: str, loop_id: str) -> str:
+def telemetry_trigger_name_slug(schema: str | None, table: str | None) -> str:
+    """
+    Stable identifier segment for trigger/function SQL names.
+
+    For the default ``public`` schema, use the table name only (backward compatible).
+    For other schemas, prefix with the schema so names stay unique (e.g. auth_users).
+    """
+    sch = (schema or "public").lower()
+    tbl = (table or "").lower()
+    safe_tbl = re.sub(r"[^a-z0-9_]", "_", tbl).strip("_") or "table"
+    if sch == "public":
+        return safe_tbl
+    safe_sch = re.sub(r"[^a-z0-9_]", "_", sch).strip("_") or "schema"
+    return f"{safe_sch}_{safe_tbl}"
+
+
+def sql_qualified_table(schema: str | None, table: str | None) -> str:
+    """Return a schema-qualified table reference for SQL DDL (double-quoted identifiers)."""
+    s = (schema or "public").replace('"', '""')
+    t = (table or "").replace('"', '""')
+    return f'"{s}"."{t}"'
+
+
+def _trigger_name(slug: str, operation: str, loop_id: str) -> str:
     """Generate a safe trigger name."""
     safe_loop = re.sub(r"[^a-z0-9_]", "_", loop_id.lower())
-    return f"skene_growth_trg_{table}_{operation}_{safe_loop}"
+    return f"skene_growth_trg_{slug}_{operation}_{safe_loop}"
 
 
-def _function_name(table: str, operation: str, loop_id: str) -> str:
+def _function_name(slug: str, operation: str, loop_id: str) -> str:
     """Generate a safe function name for the trigger."""
     safe_loop = re.sub(r"[^a-z0-9_]", "_", loop_id.lower())
-    return f"skene_growth_fn_{table}_{operation}_{safe_loop}"
+    return f"skene_growth_fn_{slug}_{operation}_{safe_loop}"
 
 
 def _build_trigger_function_sql(
     *,
     loop_id: str,
+    schema: str | None,
     table: str,
     operation: str,
     properties: list[str],
@@ -43,7 +67,9 @@ def _build_trigger_function_sql(
     from there, enriches, evaluates condition_config, then calls edge function
     proxy which forwards to centralized cloud API.
     """
-    fn_name = _function_name(table, operation, loop_id)
+    sch = schema or "public"
+    slug = telemetry_trigger_name_slug(sch, table)
+    fn_name = _function_name(slug, operation, loop_id)
     row_var = "NEW" if operation in ("INSERT", "UPDATE") else "OLD"
 
     props_exprs = []
@@ -52,7 +78,7 @@ def _build_trigger_function_sql(
         safe_col = p.replace('"', '""')
         props_exprs.append(f"'{safe_key}', {row_var}.\"{safe_col}\"")
     metadata_json = "jsonb_build_object(" + ", ".join(props_exprs) + ")"
-    event_type_val = f"{table.lower()}.{operation.lower()}"
+    event_type_val = f"{sch}.{table}.{operation}".lower()
 
     id_col = next((c for c in properties if c.lower() == "id"), properties[0] if properties else None)
     entity_id_expr = f'{row_var}."{id_col}"' if id_col else "NULL"
@@ -80,16 +106,19 @@ $$;
 """.strip()
 
 
-def _build_trigger_sql(table: str, operation: str, loop_id: str) -> str:
+def _build_trigger_sql(schema: str | None, table: str, operation: str, loop_id: str) -> str:
     """Build DROP + CREATE TRIGGER SQL (idempotent)."""
-    trg_name = _trigger_name(table, operation, loop_id)
-    fn_name = _function_name(table, operation, loop_id)
+    sch = schema or "public"
+    slug = telemetry_trigger_name_slug(sch, table)
+    trg_name = _trigger_name(slug, operation, loop_id)
+    fn_name = _function_name(slug, operation, loop_id)
+    qualified = sql_qualified_table(sch, table)
 
     timing = "AFTER"
     return f"""
-DROP TRIGGER IF EXISTS {trg_name} ON public.{table};
+DROP TRIGGER IF EXISTS {trg_name} ON {qualified};
 CREATE TRIGGER {trg_name}
-  {timing} {operation} ON public.{table}
+  {timing} {operation} ON {qualified}
   FOR EACH ROW
   EXECUTE FUNCTION {fn_name}();
 """
@@ -136,26 +165,28 @@ def build_migration_sql(
     from skene init / ensure_base_schema_migration. Idempotent: DROP TRIGGER
     IF EXISTS before CREATE.
     """
-    seen: set[tuple[str, str, str]] = set()
+    seen: set[tuple[str, str, str, str]] = set()
     fn_parts: list[str] = []
     trg_parts: list[str] = []
 
     for loop_def in loops:
         loop_id = loop_def.get("loop_id", "growth_loop")
         for t in extract_supabase_telemetry(loop_def):
+            schema = (t.get("schema") or "public").strip() or "public"
             table = t.get("table")
             operation = (t.get("operation") or "INSERT").upper()
             properties = t.get("properties") or ["id"]
 
             if not table:
                 continue
-            key = (table, operation, loop_id)
+            key = (schema, table, operation, loop_id)
             if key in seen:
                 continue
             seen.add(key)
 
             fn_sql = _build_trigger_function_sql(
                 loop_id=loop_id,
+                schema=schema,
                 table=table,
                 operation=operation,
                 properties=properties,
@@ -163,7 +194,7 @@ def build_migration_sql(
 
             fn_parts.append(fn_sql)
 
-            trg_sql = _build_trigger_sql(table, operation, loop_id)
+            trg_sql = _build_trigger_sql(schema, table, operation, loop_id)
             trg_parts.append(trg_sql)
 
     migration = f"""-- Skene Growth: allowlisted triggers insert into event_log (Shadow Mirror)
@@ -217,14 +248,15 @@ def write_migration(
 
 
 def _trigger_events_from_loops(loops: list[dict[str, Any]]) -> list[str]:
-    """Extract trigger events (table.operation) from loop telemetry."""
+    """Extract trigger events (schema.table.operation) from loop telemetry."""
     events: list[str] = []
     for loop_def in loops:
         for t in extract_supabase_telemetry(loop_def):
+            schema = (t.get("schema") or "public").strip() or "public"
             table = t.get("table")
             op = (t.get("operation") or "INSERT").lower()
             if table:
-                events.append(f"{table.lower()}.{op}")
+                events.append(f"{schema.lower()}.{table.lower()}.{op}")
     return list(dict.fromkeys(events))
 
 

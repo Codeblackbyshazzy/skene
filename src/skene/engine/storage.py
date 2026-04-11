@@ -283,12 +283,13 @@ def engine_features_to_loop_definitions(doc: EngineDocument) -> list[dict[str, A
         parsed = parse_source_to_db_event(feature.source)
         if not parsed:
             continue
-        _, table, operation = parsed
+        schema, table, operation = parsed
 
         loop_id = _sanitize_identifier(feature.key)
         telemetry = {
             "type": "supabase",
             "action_name": _sanitize_identifier(feature.key),
+            "schema": schema,
             "table": table,
             "operation": operation,
             "description": feature.how_it_works,
@@ -306,7 +307,7 @@ def engine_features_to_loop_definitions(doc: EngineDocument) -> list[dict[str, A
 
 
 def collect_engine_trigger_events(doc: EngineDocument) -> list[str]:
-    """Return unique trigger events (`table.operation`) for actionable engine features."""
+    """Return unique trigger events (`schema.table.operation`) for actionable engine features."""
     events: list[str] = []
     for feature in doc.features:
         if feature.action is None:
@@ -314,6 +315,6 @@ def collect_engine_trigger_events(doc: EngineDocument) -> list[str]:
         parsed = parse_source_to_db_event(feature.source)
         if not parsed:
             continue
-        _, table, operation = parsed
-        events.append(f"{table.lower()}.{operation.lower()}")
+        schema, table, operation = parsed
+        events.append(f"{schema.lower()}.{table.lower()}.{operation.lower()}")
     return list(dict.fromkeys(events))
