@@ -1,15 +1,13 @@
-```
-```
-
 <p align="center">
   <img src="https://skene.ai/img/skene-logo.svg" alt="Skene" width="140" />
 </p>
+
+<h3 align="center">Backend skills for your Supabase</h3>
 
 <p align="center">
   <a href="#why-this-exists">Why</a> &middot;
   <a href="#quick-start">Quick Start</a> &middot;
   <a href="#available-skills">Available Skills</a> &middot;
-  <a href="#see-your-customer-journey">Journey Map</a> &middot;
   <a href="#built-for-ai-agents">AI Agents</a> &middot;
   <a href="#skene-cloud-optional-upgrade">Skene Cloud</a> &middot;
   <a href="docs/dependencies.md">Dependencies</a>
@@ -22,12 +20,6 @@
   <a href="https://skene.ai"><img src="https://img.shields.io/badge/Skene_Cloud-compatible-E8C260" alt="Skene Cloud" /></a>
 </p>
 
-<p align="center">
-  <img src="docs/assets/skene-engine-demo.gif" alt="Skene Engine generating a visual journey from your schema" width="720" />
-  <br />
-  <em>Install Skills, connect <a href="https://skene.ai">Skene Cloud</a>, get a visual journey of your entire schema. No configuration.</em>
-</p>
-
 ---
 
 Install backend Skills into your Supabase project. CRM, billing, helpdesk, project management, calendar, and more. Each Skill adds tables, enums, RLS policies, and seed data. Pick what you need.
@@ -36,7 +28,13 @@ Install backend Skills into your Supabase project. CRM, billing, helpdesk, proje
 npx skills add SkeneTechnologies/skene
 ```
 
-Skills install to your `.claude/skills/` directory. Your AI agent reads the SKILL.md files, understands the schema, and applies the migrations to your Supabase project. That's it -- the same data model that powers Salesforce, HubSpot, Jira, Zendesk, and Stripe. Except you own it.
+The same data model that powers Salesforce, HubSpot, Jira, Zendesk, and Stripe. Except you own it.
+
+<p align="center">
+  <img src="docs/assets/skene-engine-demo.gif" alt="Skene Engine generating a visual journey from your schema" width="720" />
+  <br />
+  <em>Install Skills, connect <a href="https://skene.ai">Skene Cloud</a>, get a visual journey of your entire schema.</em>
+</p>
 
 ---
 
