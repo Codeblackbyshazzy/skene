@@ -14,6 +14,7 @@
 </p>
 
 <p align="center">
+  <a href="https://www.npmjs.com/package/@skene/database-skills"><img src="https://img.shields.io/npm/v/@skene/database-skills?label=npm&color=CB3837&logo=npm" alt="npm" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
   <a href="https://supabase.com"><img src="https://img.shields.io/badge/Supabase-ready-3ECF8E?logo=supabase&logoColor=white" alt="Supabase Ready" /></a>
   <a href="https://skills.sh"><img src="https://img.shields.io/badge/skills.sh-compatible-000000" alt="skills.sh" /></a>
@@ -25,7 +26,7 @@
 Install backend Skills into your Supabase project. CRM, billing, helpdesk, project management, calendar, and more. Each Skill adds tables, enums, RLS policies, and seed data. Pick what you need.
 
 ```bash
-npx skills add SkeneTechnologies/skene
+npm install @skene/database-skills
 ```
 
 The same data model that powers Salesforce, HubSpot, Jira, Zendesk, and Stripe. Except you own it.
@@ -72,7 +73,13 @@ Skene Skills deploy directly into your Supabase Postgres instance. No per-seat p
 
 ## Quick start
 
-### Install via skills.sh
+### Install via npm
+
+```bash
+npm install @skene/database-skills
+```
+
+### Or via skills.sh
 
 ```bash
 # Install all Skene Skills
@@ -347,7 +354,13 @@ crm/
 └── manifest.json     # Metadata and dependency declarations
 ```
 
-### Via skills.sh (recommended)
+### Via npm (recommended)
+
+```bash
+npm install @skene/database-skills
+```
+
+### Via skills.sh
 
 ```bash
 # Install all skills -- lands in .claude/skills/
@@ -446,7 +459,7 @@ CREATE TRIGGER on_auth_user_created
 Skills are composable backend capabilities that follow the [Agent Skills](https://agentskills.io) open standard. Each skill is a self-contained set of tables, enums, RLS policies, and seed data packaged with a SKILL.md that any AI agent can read. Install via [skills.sh](https://skills.sh) or apply the SQL directly.
 
 **Do I need a CLI?**
-No. Skills don't require any CLI tool. Install via `npx skills add` (the skills.sh standard), or run the `migration.sql` files directly with `psql`. No build step, no package manager, no runtime.
+No. Install via `npm install @skene/database-skills`, `npx skills add` (the skills.sh standard), or run the `migration.sql` files directly with `psql`. No build step, no runtime.
 
 **Can I install just one skill?**
 Yes. Only `identity` is required as a base. Everything else is optional. Dependencies are declared in each skill's `manifest.json`.

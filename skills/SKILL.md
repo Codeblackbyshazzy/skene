@@ -34,10 +34,13 @@ A collection of composable, independently installable backend schemas for Supaba
 ## Installation
 
 ```bash
-# Install a single skill (resolves dependencies automatically)
+# Via npm
+npm install @skene/database-skills
+
+# Or install a single skill (resolves dependencies automatically)
 ./scripts/install.sh crm
 
-# Install everything
+# Or install everything
 ./scripts/install.sh all
 ```
 
