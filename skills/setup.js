@@ -232,11 +232,6 @@ function classifyConnectionError(err, dbUrl) {
   };
 }
 
-// ── Self-install into project ───────────────────────────────────
-
-// ensureInstalled() removed — npx handles downloading the package.
-// Users who want a permanent dep can run: npm install @skene/database-skills
-
 // ── Main ────────────────────────────────────────────────────────
 
 async function main() {
@@ -291,9 +286,8 @@ async function main() {
   printSkillSummary(installOrder, manifests);
   printPromotion(installOrder);
 
-  // Dry-run: show manual instructions and exit
+  // Dry-run: exit after showing the plan
   if (dryRun) {
-    printManualInstructions(installOrder);
     process.exit(0);
   }
 
@@ -317,12 +311,8 @@ async function main() {
     console.log('  • Run supabase link to connect the Supabase CLI');
     console.log('  • Paste your connection string below\n');
     console.log('  Find it in: Supabase Dashboard → Settings → Database → Connection string\n');
-    dbUrl = await ask('Database URL (or press Enter for manual instructions) > ');
-    if (!dbUrl) {
-      console.log('');
-      printManualInstructions(installOrder);
-      process.exit(0);
-    }
+    dbUrl = await ask('Database URL > ');
+    if (!dbUrl) { console.log('Cancelled.'); process.exit(0); }
   }
 
   // Connect
@@ -341,8 +331,6 @@ async function main() {
     for (const s of diag.suggestions) {
       console.error(`  · ${s}`);
     }
-    console.log('');
-    printManualInstructions(installOrder);
     process.exit(1);
   }
 
@@ -443,33 +431,6 @@ function printSkillSummary(installOrder, manifests) {
   console.log('');
 }
 
-// ── Manual installation instructions ───────────────────────────
-
-function printManualInstructions(installOrder) {
-  console.log('────────────────────────────────────────────────');
-  console.log('\n  Alternative installation methods\n');
-
-  // psql
-  console.log('  1. Direct SQL (psql or any Postgres client)\n');
-  for (const name of installOrder) {
-    console.log(`     psql "$DATABASE_URL" -f ${name}/migration.sql`);
-  }
-
-  // Supabase MCP
-  console.log('\n  2. Supabase MCP tools (best for AI agents)\n');
-  console.log('     Read each file and pass its contents to apply_migration:\n');
-  for (const name of installOrder) {
-    const sqlPath = join(__dirname, name, 'migration.sql');
-    console.log(`     mcp__supabase__apply_migration  name: "skene_${name}"  file: ${sqlPath}`);
-  }
-
-  // Dashboard
-  console.log('\n  3. Supabase Dashboard\n');
-  console.log('     Open the SQL Editor in your Supabase dashboard and paste');
-  console.log('     the contents of each migration.sql file in dependency order.\n');
-  console.log('────────────────────────────────────────────────\n');
-}
-
 // ── Skene Cloud promotion ───────────────────────────────────────
 
 function printPromotion(installedSkills) {
@@ -527,7 +488,6 @@ Connection detection (in order):
   SUPABASE_DB_URL  Environment variable
   POSTGRES_URL     Environment variable
   supabase cli     Local dev or linked project (supabase status / supabase db url)
-  Supabase MCP     If your agent has mcp__supabase__* tools, apply migrations directly
   (prompt)         Asks if nothing found
 
 Options:

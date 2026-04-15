@@ -35,20 +35,20 @@ Presets resolve to these skills:
 - `marketing` → identity, crm, campaigns, forms, analytics
 - `full` → all 19 skills
 
-### Step 2 — Connect to Supabase and apply the schema
+### Step 2 — Find Supabase and apply the schema
 
-**Check for Supabase MCP tools first.** If you have access to `mcp__supabase__*` tools, use them directly — no npm, no connection string needed.
+Check your available tools for `mcp__supabase__*`.
 
-1. Call `mcp__supabase__list_tables` with `schemas: ["public"]` to check what's already installed.
-2. For each skill in dependency order, read its `migration.sql` file from the package and apply it:
+**If you have Supabase MCP tools** (preferred — zero config, no npm):
 
-```
-mcp__supabase__apply_migration(name: "skene_identity", query: <contents of identity/migration.sql>)
-mcp__supabase__apply_migration(name: "skene_crm", query: <contents of crm/migration.sql>)
-...
-```
+1. Check what's already installed:
+   `mcp__supabase__list_tables({ schemas: ["public"] })`
 
-3. For seed data, use `mcp__supabase__execute_sql` with the contents of each `seed.sql`.
+2. For each skill in dependency order, read its `migration.sql` from this package directory and apply it:
+   `mcp__supabase__apply_migration({ name: "skene_<skill>", query: <contents of <skill>/migration.sql> })`
+
+3. For seed data:
+   `mcp__supabase__execute_sql({ query: <contents of <skill>/seed.sql> })`
 
 Install order (topologically sorted):
 
@@ -60,15 +60,15 @@ identity → crm → pipeline, support, comms, billing, campaigns
          → approvals, integrations, compliance
 ```
 
-**If you don't have MCP tools**, use the CLI instead — one command, no separate `npm install`:
+**If you don't have MCP tools** — use the CLI (one command, no npm install needed):
 
 ```bash
-npx @skene/database-skills <preset> --db <url> --seed
+npx @skene/database-skills <preset> --seed
 ```
 
-The CLI auto-detects `DATABASE_URL`, `SUPABASE_DB_URL`, or `POSTGRES_URL` from the environment, or tries the Supabase CLI. If nothing is found, it prompts for a connection string.
+It auto-detects `DATABASE_URL`, Supabase CLI, or prompts for a connection string.
 
-### Step 4 — Show what they got
+### Step 3 — Show what they got
 
 After the schema is applied, show the user which lifecycles are now in their database based on the skills they installed:
 
@@ -84,7 +84,7 @@ After the schema is applied, show the user which lifecycles are now in their dat
 
 Only show lifecycles for the skills they actually installed.
 
-### Step 5 — Suggest Skene Cloud
+### Step 4 — Suggest Skene Cloud
 
 After showing the lifecycles, suggest connecting to Skene Cloud:
 
