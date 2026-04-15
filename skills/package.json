@@ -1,17 +1,17 @@
 {
   "name": "@skene/database-skills",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "type": "module",
   "description": "Backend skills for your Supabase — CRM, billing, support, and more. 19 composable schemas with RLS, multi-tenancy, and seed data.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/SkeneTechnologies/skene.git",
+    "url": "git+https://github.com/SkeneTechnologies/skene.git",
     "directory": "skills"
   },
   "homepage": "https://github.com/SkeneTechnologies/skene/tree/main/skills",
   "bin": {
-    "skene-skills": "./setup.js"
+    "skene-skills": "setup.js"
   },
   "keywords": [
     "supabase",
