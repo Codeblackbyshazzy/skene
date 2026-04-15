@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// setup.mjs — One-script installer for @skene/database-skills.
+// setup.js — One-script installer for @skene/database-skills.
 //
 // Usage (AI agent or terminal):
 //   npx @skene/database-skills crm                          # preset
@@ -103,11 +103,14 @@ function ask(question) {
 // ── Supabase connection detection ───────────────────────────────
 
 function detectSupabase() {
+  const tried = [];
+
   // 1. Environment variables
   for (const key of ['DATABASE_URL', 'SUPABASE_DB_URL', 'POSTGRES_URL']) {
     if (process.env[key]) {
-      return { url: process.env[key], source: key };
+      return { url: process.env[key], source: key, tried };
     }
+    tried.push(`${key} not set`);
   }
 
   // 2. Supabase CLI — local dev instance
@@ -118,9 +121,12 @@ function detectSupabase() {
     });
     const parsed = JSON.parse(status);
     if (parsed.DB_URL) {
-      return { url: parsed.DB_URL, source: 'supabase cli (local)' };
+      return { url: parsed.DB_URL, source: 'supabase cli (local)', tried };
     }
-  } catch {}
+    tried.push('supabase status: no DB_URL in output');
+  } catch (e) {
+    tried.push(`supabase status: ${e.code === 'ENOENT' ? 'CLI not installed' : 'no local instance running'}`);
+  }
 
   // 3. Supabase CLI — linked remote project
   try {
@@ -129,11 +135,110 @@ function detectSupabase() {
       timeout: 5000,
     }).trim();
     if (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://')) {
-      return { url: dbUrl, source: 'supabase cli (linked project)' };
+      return { url: dbUrl, source: 'supabase cli (linked project)', tried };
     }
-  } catch {}
+    tried.push('supabase db url: output is not a postgres URL');
+  } catch (e) {
+    tried.push(`supabase db url: ${e.code === 'ENOENT' ? 'CLI not installed' : 'no linked project'}`);
+  }
 
-  return null;
+  return { url: null, source: null, tried };
+}
+
+// ── Connection error classification ────────────────────────────
+
+function classifyConnectionError(err, dbUrl) {
+  const code = err.code || '';
+  const msg = err.message || '';
+
+  let host = '';
+  try { host = new URL(dbUrl).hostname; } catch {}
+  const isSupabaseDirect = host.includes('.supabase.co') && !host.includes('pooler');
+  const isSupabasePooler = host.includes('pooler.supabase.com') || host.includes('pooler.supabase.co');
+
+  if (code === 'ENOTFOUND') {
+    return {
+      category: 'DNS',
+      message: `Cannot resolve hostname: ${host}`,
+      suggestions: [
+        'Check the hostname in your connection string',
+        'Verify your project exists in the Supabase dashboard',
+        isSupabaseDirect ? 'Try the connection pooler URL instead (Dashboard → Settings → Database → Connection Pooling)' : null,
+      ].filter(Boolean),
+    };
+  }
+
+  if (code === 'ECONNREFUSED') {
+    return {
+      category: 'Connection refused',
+      message: `Port closed or not listening on ${host}`,
+      suggestions: [
+        'If using Supabase local dev: run supabase start first',
+        'Check the port number in your connection string',
+        isSupabaseDirect ? 'The direct connection host may be IPv6-only — try the pooler URL from Dashboard → Settings → Database → Connection Pooling' : null,
+      ].filter(Boolean),
+    };
+  }
+
+  if (code === 'ETIMEDOUT' || code === 'EHOSTUNREACH' || code === 'ENETUNREACH') {
+    return {
+      category: 'Network unreachable',
+      message: `Cannot reach ${host} (${code})`,
+      suggestions: [
+        isSupabaseDirect
+          ? 'Supabase direct connections use IPv6 only (AAAA records). Your network may not support IPv6.'
+          : 'Check your network connection and firewall settings',
+        'Try the Supabase connection pooler instead (Dashboard → Settings → Database → Connection Pooling)',
+        'Or apply migrations via Supabase MCP tools (see instructions below)',
+      ],
+    };
+  }
+
+  if (code === '28P01' || code === '28000' || msg.includes('password authentication failed')) {
+    return {
+      category: 'Authentication failed',
+      message: 'Password rejected by the database server',
+      suggestions: [
+        'Reset your database password in the Supabase dashboard (Settings → Database)',
+        'Make sure you are using the database password, not the Supabase API key',
+        isSupabasePooler ? 'The connection pooler may require the pooler-specific password format' : null,
+        'Copy a fresh connection string from Dashboard → Settings → Database → Connection string',
+      ].filter(Boolean),
+    };
+  }
+
+  if (msg.includes('SSL') || msg.includes('ssl') || code === 'DEPTH_ZERO_SELF_SIGNED_CERT') {
+    return {
+      category: 'SSL error',
+      message: msg,
+      suggestions: [
+        'The connection is configured with SSL — make sure the server supports it',
+        'If using a local database, try adding ?sslmode=disable to the connection string',
+      ],
+    };
+  }
+
+  if (code === 'ECONNRESET') {
+    return {
+      category: 'Connection reset',
+      message: 'The server closed the connection unexpectedly',
+      suggestions: [
+        'This may indicate a firewall or proxy intercepting the connection',
+        'Try a different connection method (pooler vs direct)',
+        'If the problem persists, check the Supabase dashboard for project status',
+      ],
+    };
+  }
+
+  return {
+    category: 'Connection error',
+    message: msg,
+    suggestions: [
+      'Check your DATABASE_URL and try again',
+      'Make sure your Supabase project is active (not paused)',
+      'Try the connection pooler URL from Dashboard → Settings → Database → Connection Pooling',
+    ],
+  };
 }
 
 // ── Self-install into project ───────────────────────────────────
@@ -141,10 +246,14 @@ function detectSupabase() {
 function ensureInstalled() {
   try {
     const cwd = process.env.INIT_CWD || process.cwd();
+    // Don't self-install when running from the package's own directory
+    if (cwd === __dirname) return;
     const pkgPath = join(cwd, 'package.json');
     if (!existsSync(pkgPath)) return;
 
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+    // Don't self-install into our own package.json
+    if (pkg.name === '@skene/database-skills') return;
     const deps = { ...pkg.dependencies, ...pkg.devDependencies };
     if (deps['@skene/database-skills']) return;
 
@@ -154,7 +263,9 @@ function ensureInstalled() {
       stdio: 'inherit',
       timeout: 30_000,
     });
-  } catch {}
+  } catch (e) {
+    if (process.env.DEBUG) console.error(`Self-install skipped: ${e.message}`);
+  }
 }
 
 // ── Main ────────────────────────────────────────────────────────
@@ -167,11 +278,12 @@ async function main() {
 
   // Parse CLI args
   const args = process.argv.slice(2);
-  let target = null, dbUrl = null, seed = false;
+  let target = null, dbUrl = null, seed = false, dryRun = false;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--db' && args[i + 1]) { dbUrl = args[++i]; }
     else if (args[i] === '--seed') { seed = true; }
+    else if (args[i] === '--dry-run' || args[i] === '--plan') { dryRun = true; }
     else if (args[i] === '--help' || args[i] === '-h') { printUsage(); process.exit(0); }
     else if (!target) { target = args[i]; }
   }
@@ -193,30 +305,9 @@ async function main() {
     if (!target) { console.log('Cancelled.'); process.exit(0); }
   }
 
-  // Detect Supabase connection: --db flag → env vars → Supabase CLI → ask
-  if (!dbUrl) {
-    console.log('\nDetecting Supabase...');
-    const detected = detectSupabase();
-    if (detected) {
-      dbUrl = detected.url;
-      console.log(`  ✓ Found via ${detected.source}`);
-    }
-  }
-
-  if (!dbUrl) {
-    console.log('  ⚠ No connection found.\n');
-    console.log('  Options:');
-    console.log('  • Set DATABASE_URL in your environment');
-    console.log('  • Run supabase link to connect the Supabase CLI');
-    console.log('  • Paste your connection string below\n');
-    console.log('  Find it in: Supabase Dashboard → Settings → Database → Connection string\n');
-    dbUrl = await ask('Database URL > ');
-    if (!dbUrl) { console.log('Cancelled.'); process.exit(0); }
-  }
-
-  // Resolve skills
+  // Resolve skills (before connection — so we can always show the plan)
   let selected;
-  if (PRESETS[target]) {
+  if (target in PRESETS) {
     selected = PRESETS[target] || allSkills;
   } else {
     // Comma-separated skill names
@@ -229,6 +320,47 @@ async function main() {
 
   console.log(`\nInstall order: ${installOrder.join(' → ')}`);
 
+  // Always show what they're getting — this is the key conversion moment
+  printSkillSummary(installOrder, manifests);
+  printPromotion(installOrder);
+
+  // Dry-run: show manual instructions and exit
+  if (dryRun) {
+    printManualInstructions(installOrder);
+    process.exit(0);
+  }
+
+  // ── Connection phase ───────────────────────────────────────────
+
+  // Detect Supabase connection: --db flag → env vars → Supabase CLI → ask
+  if (!dbUrl) {
+    console.log('Detecting Supabase connection...');
+    const detected = detectSupabase();
+    if (detected.url) {
+      dbUrl = detected.url;
+      console.log(`  ✓ Found via ${detected.source}`);
+    } else {
+      for (const t of detected.tried) {
+        console.log(`  · ${t}`);
+      }
+    }
+  }
+
+  if (!dbUrl) {
+    console.log('\n  ⚠ No connection found.\n');
+    console.log('  Options:');
+    console.log('  • Set DATABASE_URL in your environment');
+    console.log('  • Run supabase link to connect the Supabase CLI');
+    console.log('  • Paste your connection string below\n');
+    console.log('  Find it in: Supabase Dashboard → Settings → Database → Connection string\n');
+    dbUrl = await ask('Database URL > ');
+    if (!dbUrl) {
+      console.log('');
+      printManualInstructions(installOrder);
+      process.exit(0);
+    }
+  }
+
   // Connect
   const client = new pg.Client({
     connectionString: dbUrl,
@@ -239,8 +371,14 @@ async function main() {
   try {
     await client.connect();
   } catch (err) {
-    console.error(`\nConnection failed: ${err.message}`);
-    console.error('Check your DATABASE_URL and try again.');
+    const diag = classifyConnectionError(err, dbUrl);
+    console.error(`\n  Connection failed: ${diag.category}`);
+    console.error(`  ${diag.message}\n`);
+    for (const s of diag.suggestions) {
+      console.error(`  · ${s}`);
+    }
+    console.log('');
+    printManualInstructions(installOrder);
     process.exit(1);
   }
 
@@ -276,7 +414,6 @@ async function main() {
 
   if (toInstall.length === 0) {
     console.log('\nAll selected skills are already installed!');
-    printPromotion(installOrder);
     await client.end();
     return;
   }
@@ -326,9 +463,47 @@ async function main() {
   }
 
   await client.end();
+}
 
-  // Skene Cloud promotion
-  printPromotion(installOrder);
+// ── Skill summary ──────────────────────────────────────────────
+
+function printSkillSummary(installOrder, manifests) {
+  const maxName = Math.max(...installOrder.map((n) => n.length));
+
+  console.log('\n  Skills to install:\n');
+  for (const name of installOrder) {
+    const tables = manifests.get(name).tables || [];
+    const count = `${tables.length} table${tables.length === 1 ? '' : 's'}`;
+    console.log(`    ${name.padEnd(maxName + 2)} ${count.padEnd(10)} ${tables.join(', ')}`);
+  }
+  console.log('');
+}
+
+// ── Manual installation instructions ───────────────────────────
+
+function printManualInstructions(installOrder) {
+  console.log('────────────────────────────────────────────────');
+  console.log('\n  Alternative installation methods\n');
+
+  // psql
+  console.log('  1. Direct SQL (psql or any Postgres client)\n');
+  for (const name of installOrder) {
+    console.log(`     psql "$DATABASE_URL" -f ${name}/migration.sql`);
+  }
+
+  // Supabase MCP
+  console.log('\n  2. Supabase MCP tools (best for AI agents)\n');
+  console.log('     Read each file and pass its contents to apply_migration:\n');
+  for (const name of installOrder) {
+    const sqlPath = join(__dirname, name, 'migration.sql');
+    console.log(`     mcp__supabase__apply_migration  name: "skene_${name}"  file: ${sqlPath}`);
+  }
+
+  // Dashboard
+  console.log('\n  3. Supabase Dashboard\n');
+  console.log('     Open the SQL Editor in your Supabase dashboard and paste');
+  console.log('     the contents of each migration.sql file in dependency order.\n');
+  console.log('────────────────────────────────────────────────\n');
 }
 
 // ── Skene Cloud promotion ───────────────────────────────────────
@@ -367,7 +542,7 @@ function printUsage() {
 Skene Database Skills — Backend schemas for your Supabase project.
 
 Usage:
-  npx @skene/database-skills <preset|skills> [--db <url>] [--seed]
+  npx @skene/database-skills <preset|skills> [--db <url>] [--seed] [--dry-run]
 
 Presets:
   crm        contacts, companies, deals, comms, analytics
@@ -383,16 +558,19 @@ Examples:
   npx @skene/database-skills crm,pipeline,support --db $DATABASE_URL
 
 Connection detection (in order):
-  --db <url>     Explicit database URL
-  DATABASE_URL   Environment variable
+  --db <url>       Explicit database URL
+  DATABASE_URL     Environment variable
   SUPABASE_DB_URL  Environment variable
-  POSTGRES_URL   Environment variable
-  supabase cli   Local dev or linked project (supabase status / supabase db url)
-  (prompt)       Asks if nothing found
+  POSTGRES_URL     Environment variable
+  supabase cli     Local dev or linked project (supabase status / supabase db url)
+  Supabase MCP     If your agent has mcp__supabase__* tools, apply migrations directly
+  (prompt)         Asks if nothing found
 
 Options:
   --db <url>   Override database URL
   --seed       Load demo data after migrations
+  --dry-run    Show install plan without connecting to a database
+  --plan       Alias for --dry-run
   --help       Show this help
 `);
 }

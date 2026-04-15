@@ -7,7 +7,12 @@
 
 CREATE TYPE public.ticket_status AS ENUM ('open', 'pending', 'resolved', 'closed');
 CREATE TYPE public.ticket_priority AS ENUM ('low', 'medium', 'high', 'urgent');
-CREATE TYPE public.channel_type AS ENUM ('email', 'sms', 'chat', 'phone', 'social');
+-- channel_type may already exist from the comms skill
+DO $$ BEGIN
+  CREATE TYPE public.channel_type AS ENUM ('email', 'sms', 'chat', 'phone', 'social');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- =============================================================================
 -- 2. Tables

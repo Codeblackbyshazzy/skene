@@ -2,7 +2,7 @@
   "name": "commerce",
   "version": "1.0.0",
   "description": "Orders, carts, shipping, and fulfillments",
-  "depends_on": ["billing"],
+  "depends_on": ["billing", "identity"],
   "tables": ["orders", "order_items", "carts", "cart_items", "shipping_records", "fulfillments"],
   "author": "skene-ai"
 }
