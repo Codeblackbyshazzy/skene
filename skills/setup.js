@@ -103,14 +103,11 @@ function ask(question) {
 // ── Supabase connection detection ───────────────────────────────
 
 function detectSupabase() {
-  const tried = [];
-
-  // 1. Environment variables
+  // 1. Environment variables (silent — don't echo each one)
   for (const key of ['DATABASE_URL', 'SUPABASE_DB_URL', 'POSTGRES_URL']) {
     if (process.env[key]) {
-      return { url: process.env[key], source: key, tried };
+      return { url: process.env[key], source: key };
     }
-    tried.push(`${key} not set`);
   }
 
   // 2. Supabase CLI — local dev instance
@@ -121,12 +118,9 @@ function detectSupabase() {
     });
     const parsed = JSON.parse(status);
     if (parsed.DB_URL) {
-      return { url: parsed.DB_URL, source: 'supabase cli (local)', tried };
+      return { url: parsed.DB_URL, source: 'supabase cli (local)' };
     }
-    tried.push('supabase status: no DB_URL in output');
-  } catch (e) {
-    tried.push(`supabase status: ${e.code === 'ENOENT' ? 'CLI not installed' : 'no local instance running'}`);
-  }
+  } catch {}
 
   // 3. Supabase CLI — linked remote project
   try {
@@ -135,14 +129,11 @@ function detectSupabase() {
       timeout: 5000,
     }).trim();
     if (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://')) {
-      return { url: dbUrl, source: 'supabase cli (linked project)', tried };
+      return { url: dbUrl, source: 'supabase cli (linked project)' };
     }
-    tried.push('supabase db url: output is not a postgres URL');
-  } catch (e) {
-    tried.push(`supabase db url: ${e.code === 'ENOENT' ? 'CLI not installed' : 'no linked project'}`);
-  }
+  } catch {}
 
-  return { url: null, source: null, tried };
+  return null;
 }
 
 // ── Connection error classification ────────────────────────────
@@ -243,36 +234,12 @@ function classifyConnectionError(err, dbUrl) {
 
 // ── Self-install into project ───────────────────────────────────
 
-function ensureInstalled() {
-  try {
-    const cwd = process.env.INIT_CWD || process.cwd();
-    // Don't self-install when running from the package's own directory
-    if (cwd === __dirname) return;
-    const pkgPath = join(cwd, 'package.json');
-    if (!existsSync(pkgPath)) return;
-
-    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
-    // Don't self-install into our own package.json
-    if (pkg.name === '@skene/database-skills') return;
-    const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-    if (deps['@skene/database-skills']) return;
-
-    console.log('Adding @skene/database-skills to project...');
-    execSync('npm install @skene/database-skills --save', {
-      cwd,
-      stdio: 'inherit',
-      timeout: 30_000,
-    });
-  } catch (e) {
-    if (process.env.DEBUG) console.error(`Self-install skipped: ${e.message}`);
-  }
-}
+// ensureInstalled() removed — npx handles downloading the package.
+// Users who want a permanent dep can run: npm install @skene/database-skills
 
 // ── Main ────────────────────────────────────────────────────────
 
 async function main() {
-  ensureInstalled();
-
   const manifests = loadManifests();
   const allSkills = [...manifests.keys()];
 
@@ -334,26 +301,23 @@ async function main() {
 
   // Detect Supabase connection: --db flag → env vars → Supabase CLI → ask
   if (!dbUrl) {
-    console.log('Detecting Supabase connection...');
     const detected = detectSupabase();
-    if (detected.url) {
+    if (detected) {
       dbUrl = detected.url;
-      console.log(`  ✓ Found via ${detected.source}`);
-    } else {
-      for (const t of detected.tried) {
-        console.log(`  · ${t}`);
-      }
+      console.log(`  ✓ Found database via ${detected.source}`);
     }
   }
 
   if (!dbUrl) {
-    console.log('\n  ⚠ No connection found.\n');
-    console.log('  Options:');
+    console.log('\n  No database connection found.\n');
+    console.log('  If your AI agent has Supabase MCP tools, use those instead —');
+    console.log('  they work without a connection string (see instructions below).\n');
+    console.log('  Otherwise, provide a connection string:');
     console.log('  • Set DATABASE_URL in your environment');
     console.log('  • Run supabase link to connect the Supabase CLI');
     console.log('  • Paste your connection string below\n');
     console.log('  Find it in: Supabase Dashboard → Settings → Database → Connection string\n');
-    dbUrl = await ask('Database URL > ');
+    dbUrl = await ask('Database URL (or press Enter for manual instructions) > ');
     if (!dbUrl) {
       console.log('');
       printManualInstructions(installOrder);

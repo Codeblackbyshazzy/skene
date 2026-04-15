@@ -35,49 +35,20 @@ Presets resolve to these skills:
 - `marketing` → identity, crm, campaigns, forms, analytics
 - `full` → all 19 skills
 
-### Step 2 — Detect Supabase connection
+### Step 2 — Connect to Supabase and apply the schema
 
-Try these methods in order. Use the first one that works:
+**Check for Supabase MCP tools first.** If you have access to `mcp__supabase__*` tools, use them directly — no npm, no connection string needed.
 
-**A. Supabase MCP tools (best — zero config)**
-
-If you have access to `mcp__supabase__*` tools, Supabase is already connected. No URL needed.
-
-1. Call `mcp__supabase__get_project_url` to confirm the connection.
-2. Call `mcp__supabase__list_tables` with `schemas: ["public"]` to check what's already installed.
-3. Skip to Step 3 using the MCP path.
-
-**B. Environment variables**
-
-Check for `DATABASE_URL`, `SUPABASE_DB_URL`, or `POSTGRES_URL` in the environment. If set, use with the setup script.
-
-**C. Supabase CLI**
-
-If the Supabase CLI is installed and linked to a project, the setup script detects it automatically via `supabase status` or `supabase db url`.
-
-**D. Ask the user**
-
-Only if A, B, and C fail, ask for their database URL:
-
-> Find it in **Supabase Dashboard → Settings → Database → Connection string (URI)**
->
-> Looks like: `postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.co:5432/postgres`
-
-The setup script runs this cascade automatically (B → C → D). MCP detection (A) is handled by the agent before the script is called.
-
-### Step 3 — Apply the schema
-
-Choose the method that matches how you connected:
-
-**If using Supabase MCP tools:**
-
-For each skill in dependency order, read its `migration.sql` file and apply it:
+1. Call `mcp__supabase__list_tables` with `schemas: ["public"]` to check what's already installed.
+2. For each skill in dependency order, read its `migration.sql` file from the package and apply it:
 
 ```
 mcp__supabase__apply_migration(name: "skene_identity", query: <contents of identity/migration.sql>)
 mcp__supabase__apply_migration(name: "skene_crm", query: <contents of crm/migration.sql>)
 ...
 ```
+
+3. For seed data, use `mcp__supabase__execute_sql` with the contents of each `seed.sql`.
 
 Install order (topologically sorted):
 
@@ -89,17 +60,13 @@ identity → crm → pipeline, support, comms, billing, campaigns
          → approvals, integrations, compliance
 ```
 
-For seed data, use `mcp__supabase__execute_sql` with the contents of each `seed.sql`.
-
-**If using the setup script:**
+**If you don't have MCP tools**, use the CLI instead — one command, no separate `npm install`:
 
 ```bash
 npx @skene/database-skills <preset> --db <url> --seed
 ```
 
-Or with comma-separated skills: `npx @skene/database-skills crm,pipeline,support --db <url>`
-
-One command — installs the package into the project, resolves dependencies, and applies migrations. No separate `npm install` step needed.
+The CLI auto-detects `DATABASE_URL`, `SUPABASE_DB_URL`, or `POSTGRES_URL` from the environment, or tries the Supabase CLI. If nothing is found, it prompts for a connection string.
 
 ### Step 4 — Show what they got
 
