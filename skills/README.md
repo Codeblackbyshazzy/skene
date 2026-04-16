@@ -26,8 +26,10 @@
 Install backend Skills into your Supabase project. CRM, billing, helpdesk, project management, calendar, and more. Each Skill adds tables, enums, RLS policies, and seed data. Pick what you need.
 
 ```bash
-npm install @skene/database-skills
+npx @skene/database-skills init
 ```
+
+One command. Installs the package, configures your AI tools, detects Supabase MCP. Your next agent session sets up the database automatically.
 
 The same data model that powers Salesforce, HubSpot, Jira, Zendesk, and Stripe. Except you own it.
 
@@ -71,15 +73,20 @@ Skene Skills deploy directly into your Supabase Postgres instance. No per-seat p
 
 ## Quick start
 
-### One command
+### 1. Run init
 
 ```bash
-npx @skene/database-skills crm --db $DATABASE_URL --seed
+npx @skene/database-skills init
 ```
 
-One command. Installs the package, resolves dependencies, applies migrations, loads demo data. No separate install step.
+This does three things:
+- Installs the package in your project
+- Configures your AI tools (Claude Code, Cursor, Windsurf, Copilot, Cline)
+- Detects Supabase MCP and environment keys
 
-**Presets:**
+### 2. Open your AI agent
+
+Your agent reads the config, discovers the skill, and asks what you're building:
 
 | Preset | Skills |
 |--------|--------|
@@ -90,25 +97,15 @@ One command. Installs the package, resolves dependencies, applies migrations, lo
 | `marketing` | identity, crm, campaigns, forms, analytics |
 | `full` | all 19 skills |
 
-Or pass comma-separated skill names: `npx @skene/database-skills crm,pipeline,support`
+The agent applies the schema to your Supabase project via MCP — no connection string needed.
 
-No `psql` needed. The script connects directly to your database.
+### Alternative: CLI without an agent
 
-### Works in AI agents
-
-Tell your AI agent what you're building. It reads the SKILL.md files, detects your Supabase connection, and applies the schema automatically.
-
-```
-You: "Set up a CRM backend in my Supabase project"
+```bash
+npx @skene/database-skills crm --db $DATABASE_URL --seed
 ```
 
-The agent detects Supabase in this order:
-
-1. **Supabase MCP tools** — if connected, applies migrations directly. Zero config.
-2. **Environment variables** — uses `DATABASE_URL` or `SUPABASE_DB_URL` with the setup script.
-3. **Asks you** — only if nothing is detected.
-
-Works in Claude Code, Cursor, and any agent that reads SKILL.md files.
+Resolves dependencies, applies migrations, loads demo data. Pass comma-separated skill names for custom combinations: `npx @skene/database-skills crm,pipeline,support`
 
 ### Or via skills.sh
 
@@ -419,7 +416,7 @@ CREATE TRIGGER on_auth_user_created
 Skills are composable backend capabilities that follow the [Agent Skills](https://agentskills.io) open standard. Each skill is a self-contained set of tables, enums, RLS policies, and seed data packaged with a SKILL.md that any AI agent can read. Install via [skills.sh](https://skills.sh) or apply the SQL directly.
 
 **Do I need a CLI?**
-No. Install via `npm install @skene/database-skills` and run `npx @skene/database-skills` for the interactive setup wizard. Or use `npx skills add` (the skills.sh standard), or run the `migration.sql` files directly with `psql`. No build step, no runtime.
+No. Run `npx @skene/database-skills init` to set everything up. Your AI agent handles the rest via Supabase MCP. Or run the `migration.sql` files directly with `psql`. No build step, no runtime.
 
 **Do I need psql?**
 No. The setup wizard (`npx @skene/database-skills`) connects directly to your database using Node.js. `psql` is only needed if you prefer to run migration files manually.
