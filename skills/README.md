@@ -9,7 +9,7 @@
   <a href="#quick-start">Quick Start</a> &middot;
   <a href="#available-skills">Available Skills</a> &middot;
   <a href="#built-for-ai-agents">AI Agents</a> &middot;
-  <a href="#skene-cloud-optional-upgrade">Skene Cloud</a> &middot;
+  <a href="#skene-cloud-optional">Skene Cloud</a> &middot;
   <a href="docs/dependencies.md">Dependencies</a>
 </p>
 
@@ -32,9 +32,7 @@ npm install @skene/database-skills
 The same data model that powers Salesforce, HubSpot, Jira, Zendesk, and Stripe. Except you own it.
 
 <p align="center">
-  <img src="docs/assets/skene-engine-demo.gif" alt="Skene Engine generating a visual journey from your schema" width="720" />
-  <br />
-  <em>Install Skills, connect <a href="https://skene.ai">Skene Cloud</a>, get a visual journey of your entire schema.</em>
+  <img src="docs/assets/skene-engine-demo.gif" alt="Skene Database Skills" width="720" />
 </p>
 
 ---
@@ -116,11 +114,11 @@ Works in Claude Code, Cursor, and any agent that reads SKILL.md files.
 
 ```bash
 # Install all Skene Skills
-npx skills add SkeneTechnologies/skene
+npx skills add https://github.com/SkeneTechnologies/skene/tree/main/skills
 
 # Or install specific skills
-npx skills add SkeneTechnologies/skene -s crm
-npx skills add SkeneTechnologies/skene -s billing
+npx skills add https://github.com/SkeneTechnologies/skene/tree/main/skills -s crm
+npx skills add https://github.com/SkeneTechnologies/skene/tree/main/skills -s billing
 ```
 
 Skills install to `.claude/skills/` (or the equivalent directory for your AI agent). Each skill includes a `SKILL.md` with full schema documentation, example queries, and a `migration.sql` your agent applies to Supabase.
@@ -208,13 +206,9 @@ Every table gets:
 
 ---
 
-## See your customer journey
+## Built-in lifecycles
 
-Install Skills, connect your Supabase project to [Skene Cloud](https://skene.ai), and the engine generates a visual journey map of your entire schema. It reads your enums and foreign keys, discovers every lifecycle, and maps them automatically. No configuration required.
-
-<p align="center">
-  <img src="docs/assets/skene-engine-demo.gif" alt="Skene Engine generating a visual journey from your schema" width="720" />
-</p>
+Every skill with a status enum defines a lifecycle your app can track:
 
 | Lifecycle | Stages | Source |
 |-----------|--------|--------|
@@ -225,16 +219,6 @@ Install Skills, connect your Supabase project to [Skene Cloud](https://skene.ai)
 | Task | todo → in_progress → in_review → done | `task_status` enum |
 | Invoice | draft → open → paid → void | `invoice_status` enum |
 | Document | draft → published → archived | `document_status` enum |
-
-The AI compiler reads your enums and foreign keys, discovers these lifecycles, and maps them into a Time-to-Value journey — showing how users move from signup to value realization.
-
-Cross-entity journeys connect the dots:
-
-- **Lead-to-Revenue** — Contact created → first deal → deal won → subscription → first payment
-- **Support-driven retention** — Ticket spike → subscription at risk → proactive outreach
-- **Product-led growth** — User signup → feature adoption → team invite → upgrade
-
-The schema is the source of truth. [See it live →](https://skene.ai)
 
 ---
 
@@ -272,8 +256,8 @@ Mix and match Skills. Each combination is a product:
 
 ```
 CRM            = identity + crm + pipeline + comms + analytics
-Project tool   = identity + tasks + content + analytics
-Helpdesk       = identity + crm + support + comms + knowledge + analytics
+Project tool   = identity + tasks + content + calendar + analytics
+Helpdesk       = identity + crm + support + comms + content + knowledge + analytics
 Billing app    = identity + crm + billing + commerce + analytics
 Marketing      = identity + crm + campaigns + forms + analytics
 Internal wiki  = identity + content + knowledge
@@ -300,78 +284,11 @@ Every Skill is optional except Identity. Dependencies resolve automatically.
 
 ---
 
-## Skene Cloud (optional upgrade)
+## Skene Cloud (optional)
 
-Skene Skills is complete on its own. Build your app, query with SQL, extend however you want.
+Skene Skills is complete on its own. When you're ready for automation, [Skene Cloud](https://skene.ai) adds a journey engine that watches your tables for changes and triggers actions (emails, webhooks, analytics events) at each lifecycle transition. Connect your Supabase project, and it reads your enums and foreign keys to map lifecycles automatically.
 
-When you're ready for automation, [Skene Cloud](https://skene.ai) adds a journey engine on top. It watches your Skene Skills tables for changes and triggers actions automatically. No code changes required.
-
-### How it works
-
-```
-+-----------+       +-------------------+       +------------------+
-|  Your App |       |  Skene Skills     |       |   Skene Cloud    |
-|           | ----> |  (your Supabase)  | ----> |   (skene.ai)     |
-|  Frontend |       |                   |       |                  |
-+-----------+       |  INSERT/UPDATE    |       |  Journey Engine  |
-                    |  on any table     |       |  State Machine   |
-                    |       |           |       |  Action Dispatch |
-                    |       v           |       |       |          |
-                    |  skene_growth     |       |       v          |
-                    |  .event_log       | ----> |  Email, Webhook  |
-                    |  (pg_net webhook) |       |  Analytics, etc  |
-                    +-------------------+       +------------------+
-```
-
-**1. Connect your Supabase project** to Skene Cloud. The engine introspects your schema and discovers all Skene Skills tables, columns, foreign keys, and enums automatically.
-
-**2. The AI compiler maps your schema to lifecycles.** It reads your enums (`deal_status`, `ticket_status`, `contact_type`, `subscription_status`) and generates lifecycle definitions with stages, transitions, and conditions. No manual configuration.
-
-**3. Deploy triggers with one click.** Skene Cloud generates PL/pgSQL trigger functions on your Skene Skills tables and deploys them to your Supabase project. When a row changes, the trigger writes to `skene_growth.event_log`, which forwards to Skene Cloud via `pg_net`.
-
-**4. The journey engine processes events in real-time.** Every INSERT, UPDATE, or DELETE on your tables can trigger automated actions: emails, webhooks, analytics events, state transitions. Deterministic condition gates with an optional AI semantic layer for edge cases.
-
-### What you get
-
-#### Customer journey automation
-Build journeys across your entire schema. A contact moves from lead to prospect to customer. A deal moves through pipeline stages. A ticket escalates through SLA tiers. Skene Cloud tracks every entity's journey and triggers actions at each transition.
-
-#### Pipeline lifecycle builder
-The same journey builder that tracks product onboarding works for sales pipelines, support queues, hiring funnels, and subscription lifecycles. Every Skene Skills enum is a lifecycle waiting to be visualized and automated.
-
-| Lifecycle | Source | Stages |
-|-----------|--------|--------|
-| Contact | `contact_type` enum | lead > prospect > customer > partner |
-| Deal | `pipeline_stages` table | per-pipeline custom stages |
-| Ticket | `ticket_status` enum | open > pending > resolved > closed |
-| Task | `task_status` enum | todo > in_progress > in_review > done |
-| Subscription | `subscription_status` enum | trialing > active > past_due > canceled |
-| Invoice | `invoice_status` enum | draft > open > paid > void |
-| Document | `document_status` enum | draft > published > archived |
-
-#### Cross-entity orchestration
-The real power is connecting lifecycles across entities:
-
-- **Lead-to-Revenue**: Contact created > first deal > deal won > subscription created > first payment
-- **Support-driven retention**: Ticket spike > subscription at risk > proactive outreach > saved or churned
-- **Product-led growth**: User signup > feature adoption > team invite > upgrade > expansion deal
-
-#### Built-in actions
-When a lifecycle transition fires, Skene Cloud can:
-
-- Send emails via Resend (AI-generated or template-based)
-- POST to any webhook with variable interpolation
-- Fire analytics events for your data warehouse
-- Create follow-up tasks or tickets in your Skene Skills tables
-- Trigger custom actions via the tool registry
-
-### When you're ready
-
-1. Install Skene Skills into your Supabase project
-2. Sign up at [skene.ai](https://skene.ai) and connect your Supabase project
-3. The AI compiler generates lifecycles and suggests automations -- activate the ones you want
-
-Your schema stays in your database. Skene Cloud reads events, processes journeys, and dispatches actions. Disconnect at any time and keep everything. Skene Skills has zero dependencies on Skene Cloud.
+Your schema stays in your database. Disconnect at any time and keep everything. [Learn more →](https://skene.ai)
 
 ---
 
@@ -407,14 +324,14 @@ Resolves dependencies, applies migrations. Run without args for interactive prom
 
 ```bash
 # Install all skills -- lands in .claude/skills/
-npx skills add SkeneTechnologies/skene
+npx skills add https://github.com/SkeneTechnologies/skene/tree/main/skills
 
 # Install specific skills
-npx skills add SkeneTechnologies/skene -s crm
-npx skills add SkeneTechnologies/skene -s billing
+npx skills add https://github.com/SkeneTechnologies/skene/tree/main/skills -s crm
+npx skills add https://github.com/SkeneTechnologies/skene/tree/main/skills -s billing
 
 # Install globally (available in all projects)
-npx skills add SkeneTechnologies/skene -g
+npx skills add https://github.com/SkeneTechnologies/skene/tree/main/skills -g
 ```
 
 Your AI agent reads the SKILL.md files for context, then applies the `migration.sql` to your Supabase project. Dependencies are declared in each skill's manifest.
