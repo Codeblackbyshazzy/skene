@@ -71,19 +71,20 @@ const (
 // DashboardFile describes a file shown on the results dashboard.
 type DashboardFile struct {
 	ID          string
+	DisplayName string
 	Filename    string
 	Description string
 }
 
 // DashboardFiles defines the output files shown on the results dashboard.
 var DashboardFiles = []DashboardFile{
-	{ID: "manifest", Filename: GrowthManifestFile, Description: FileDescManifest},
-	{ID: "template", Filename: GrowthTemplateFile, Description: FileDescTemplate},
-	{ID: "plan", Filename: GrowthPlanFile, Description: FileDescPlan},
-	{ID: "schema", Filename: SchemaFile, Description: FileDescSchema},
-	{ID: "engine", Filename: EngineFile, Description: FileDescEngine},
-	{ID: "new-features", Filename: NewFeaturesFile, Description: FileDescNewFeatures},
-	{ID: "compiled", Filename: CompiledStateMachineFile, Description: FileDescCompiledYAML},
+	{ID: "manifest", DisplayName: "Growth Manifest", Filename: GrowthManifestFile, Description: FileDescManifest},
+	{ID: "template", DisplayName: "Growth Template", Filename: GrowthTemplateFile, Description: FileDescTemplate},
+	{ID: "new-features", DisplayName: "Planned Features", Filename: NewFeaturesFile, Description: FileDescNewFeatures},
+	{ID: "compiled", DisplayName: "State Machine", Filename: CompiledStateMachineFile, Description: FileDescCompiledYAML},
+	{ID: "engine", DisplayName: "Growth Features", Filename: EngineFile, Description: FileDescEngine},
+	{ID: "schema", DisplayName: "Schema", Filename: SchemaFile, Description: FileDescSchema},
+	{ID: "plan", DisplayName: "Growth Plan", Filename: GrowthPlanFile, Description: FileDescPlan},
 }
 
 // Skene ecosystem package metadata

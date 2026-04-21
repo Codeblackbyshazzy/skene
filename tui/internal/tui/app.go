@@ -973,7 +973,7 @@ func (a *App) openYAMLVisualizer(def *constants.DashboardFile) {
 		a.visualizerServer.Stop()
 	}
 
-	a.visualizerServer = visualizer.NewServer(filePath, def.Filename)
+	a.visualizerServer = visualizer.NewServer(filePath, def.DisplayName)
 	url, err := a.visualizerServer.Start()
 	if err != nil {
 		return

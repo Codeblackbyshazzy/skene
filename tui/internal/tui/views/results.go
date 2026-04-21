@@ -227,38 +227,33 @@ func (v *ResultsView) renderFileItem(idx int, entry fileEntry, maxWidth int) str
 	isSelected := idx == v.selectedIdx && !v.showNextSteps
 
 	if !entry.present {
-		label := fmt.Sprintf("%s [%s]", entry.def.Filename, constants.DashboardMissingLabel)
-		name := styles.ListItemDimmed.Render(label)
+		name := styles.ListItemDimmed.Render(entry.def.DisplayName)
 		desc := lipgloss.NewStyle().
 			Foreground(styles.MutedColor).
 			PaddingLeft(2).
 			Width(maxWidth).
-			Render(entry.def.Description)
+			Render(entry.def.Description + " — not yet generated.")
 		return name + "\n" + desc
 	}
 
-	var name, desc string
+	var name string
 	if isSelected {
-		name = styles.ListItemSelected.Render(entry.def.Filename)
-		desc = styles.AccentStyle().
-			PaddingLeft(2).
-			Width(maxWidth).
-			Render(entry.def.Description)
+		name = styles.ListItemSelected.Render(entry.def.DisplayName)
 	} else {
-		name = styles.ListItem.Bold(true).Render(entry.def.Filename)
-		desc = lipgloss.NewStyle().
-			Foreground(styles.MutedColor).
-			PaddingLeft(2).
-			Width(maxWidth).
-			Render(entry.def.Description)
+		name = styles.ListItem.Render(entry.def.DisplayName)
 	}
+	desc := lipgloss.NewStyle().
+		Foreground(styles.MutedColor).
+		PaddingLeft(2).
+		Width(maxWidth).
+		Render(entry.def.Description)
 	return name + "\n" + desc
 }
 
 func (v *ResultsView) renderFooterHelp() string {
 	return components.FooterHelp([]components.HelpItem{
-		{Key: constants.HelpKeyUpDown, Desc: constants.HelpDescFocus},
-		{Key: constants.HelpKeyEnter, Desc: constants.HelpDescSelect},
+		{Key: constants.HelpKeyUpDown, Desc: constants.HelpDescNavigate},
+		{Key: constants.HelpKeyEnter, Desc: "open"},
 		{Key: constants.HelpKeyN, Desc: constants.HelpDescNextSteps},
 		{Key: constants.HelpKeyCtrlC, Desc: constants.HelpDescQuit},
 	}, v.width)
@@ -789,7 +784,7 @@ func (v *FileDetailView) Render() string {
 	backIndicator := styles.AccentStyle().Render("← " + constants.DashboardBackLabel)
 
 	// File info box: title + description + last modified
-	fileTitle := styles.AccentStyle().Render(constants.OutputDirName + "/" + v.fileDef.Filename)
+	fileTitle := styles.AccentStyle().Render(v.fileDef.DisplayName)
 	fileDesc := styles.Body.Render(v.fileDef.Description)
 
 	var infoLines []string
