@@ -74,9 +74,15 @@ var NextStepActions = []NextStepDef{
 		Command:     "uvx skene validate",
 	},
 	{
+		ID:          "journey",
+		Name:        "Run Simple Analysis",
+		Description: "Schema-driven feature detection and journey planning",
+		Command:     "uvx skene analyse-journey .",
+	},
+	{
 		ID:          "rerun",
-		Name:        "Re-run Analysis",
-		Description: "Analyze the codebase again with the current configuration",
+		Name:        "Re-run Advanced Analysis",
+		Description: "Full growth analysis with tech stack, features, and monetisation",
 		Command:     "uvx skene analyze .",
 	},
 	{
@@ -161,6 +167,11 @@ const (
 const (
 	AnalysisConfigSummary   = "Analysis Summary"
 	AnalysisConfigRunButton = "Run Analysis"
+
+	AnalysisModeSimple      = "Simple Analysis"
+	AnalysisModeSimpleDesc  = "Schema-driven feature detection and journey planning"
+	AnalysisModeAdvanced    = "Advanced Analysis"
+	AnalysisModeAdvancedDesc = "Full growth analysis with tech stack, features, and monetisation"
 )
 
 // Status labels (used across analyzing view, game, etc.)

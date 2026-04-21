@@ -125,6 +125,33 @@ func (e *Engine) Run(ctx context.Context) *AnalysisResult {
 	return result
 }
 
+// RunJourney executes the simplified analysis by spawning uvx skene analyse-journey.
+// This runs a 3-step pipeline: schema analysis, growth-from-schema, and plan engine.
+func (e *Engine) RunJourney(ctx context.Context) *AnalysisResult {
+	result := &AnalysisResult{}
+
+	e.sendUpdate(PhaseScanCodebase, 0.0, "Starting schema-driven analysis...")
+
+	outputDir := e.resolveOutputDir()
+	args := []string{
+		constants.GrowthPackageSpec(), "analyse-journey", ".",
+		"-o", filepath.Join(outputDir, constants.SchemaFile),
+		"--growth-output", filepath.Join(outputDir, constants.GrowthManifestFile),
+		"--plan-output", filepath.Join(outputDir, constants.EngineFile),
+	}
+
+	if err := e.runUVX(ctx, args); err != nil {
+		result.Error = fmt.Errorf("analyse-journey failed: %w", err)
+		return result
+	}
+
+	e.sendUpdate(PhaseGenerateDocs, 1.0, "Analysis complete")
+
+	result.Manifest = loadFileContent(filepath.Join(outputDir, constants.GrowthManifestFile))
+
+	return result
+}
+
 // GeneratePlan spawns uvx skene plan
 func (e *Engine) GeneratePlan() *AnalysisResult {
 	result := &AnalysisResult{}

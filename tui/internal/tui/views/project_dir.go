@@ -282,7 +282,7 @@ func (v *ProjectDirView) HasWarning() bool {
 	return v.warningMsg != ""
 }
 
-// CheckForExistingAnalysis checks if skene-context exists in the selected directory
+// CheckForExistingAnalysis checks if the skene output directory exists in the selected directory
 // and transitions to the choice prompt if found
 func (v *ProjectDirView) CheckForExistingAnalysis() bool {
 	path := v.GetProjectDir()
@@ -332,7 +332,7 @@ func (v *ProjectDirView) DismissExistingChoice() {
 	v.buttonGroup.SetActiveIndex(0)
 }
 
-// HasExistingAnalysis returns true if skene-context was detected
+// HasExistingAnalysis returns true if the skene output directory was detected
 func (v *ProjectDirView) HasExistingAnalysis() bool {
 	return v.hasSkeneContext
 }
@@ -360,7 +360,7 @@ func (v *ProjectDirView) validatePath() {
 	v.isValid = true
 	v.validMsg = ""
 
-	// Check for existing skene-context
+	// Check for existing skene output directory
 	contextDir := filepath.Join(path, constants.OutputDirName)
 	if info, err := os.Stat(contextDir); err == nil && info.IsDir() {
 		v.hasSkeneContext = true

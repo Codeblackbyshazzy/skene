@@ -31,7 +31,7 @@ type ResultsView struct {
 }
 
 // NewResultsView creates a dashboard view. projectName is displayed as the
-// heading; outputDir is the skene-context directory to scan for files.
+// heading; outputDir is the skene output directory to scan for files.
 func NewResultsView(projectName, outputDir string) *ResultsView {
 	v := &ResultsView{
 		projectName:   projectName,

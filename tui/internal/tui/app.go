@@ -189,7 +189,7 @@ func NewApp() *App {
 
 	// Set default values if not present
 	if configMgr.Config.OutputDir == "" {
-		configMgr.Config.OutputDir = "./skene-context"
+		configMgr.Config.OutputDir = constants.DefaultOutputDir
 	}
 
 	app := &App{
@@ -791,6 +791,10 @@ func (a *App) handleProjectDirKeys(msg tea.KeyMsg) tea.Cmd {
 
 func (a *App) handleAnalysisConfigKeys(key string) tea.Cmd {
 	switch key {
+	case "up", "k":
+		a.analysisConfigView.HandleUp()
+	case "down", "j":
+		a.analysisConfigView.HandleDown()
 	case "enter":
 		a.applyAnalysisConfig()
 		return a.startAnalysis()
@@ -913,6 +917,8 @@ func (a *App) handleNextStepsModalKeys(key string) tea.Cmd {
 		switch action.ID {
 		case "exit":
 			return tea.Quit
+		case "journey":
+			return a.startSimpleAnalysis()
 		case "rerun":
 			return a.startAnalysis()
 		case "config":
@@ -1252,7 +1258,50 @@ func (a *App) startAnalysis() tea.Cmd {
 	a.analysisStartTime = time.Now()
 	a.analyzingOrigin = StateAnalysisConfig
 	a.state = StateAnalyzing
+
+	if a.analysisConfigView != nil && a.analysisConfigView.IsSimpleMode() {
+		return a.startSimpleAnalysisCmd(a.program)
+	}
 	return a.startRealAnalysisCmd(a.program)
+}
+
+func (a *App) startSimpleAnalysis() tea.Cmd {
+	a.analyzingView = views.NewAnalyzingView()
+	a.analyzingView.SetSize(a.width, a.height)
+	a.analysisStartTime = time.Now()
+	a.analyzingOrigin = StateNextSteps
+	a.state = StateAnalyzing
+	return a.startSimpleAnalysisCmd(a.program)
+}
+
+func (a *App) startSimpleAnalysisCmd(p *tea.Program) tea.Cmd {
+	cfg := a.buildEngineConfig()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	a.cancelFunc = cancel
+
+	return func() tea.Msg {
+		engine := growth.NewEngine(cfg, func(update growth.PhaseUpdate) {
+			if p != nil {
+				p.Send(AnalysisPhaseMsg{Update: update})
+			}
+		})
+		engine.SetPromptHandler(func(prompt growth.InteractivePrompt) {
+			if p != nil {
+				p.Send(PromptMsg{
+					Question: prompt.Question,
+					Options:  prompt.Options,
+					Response: prompt.Response,
+				})
+			}
+		})
+
+		result := engine.RunJourney(ctx)
+		if result.Error != nil {
+			return AnalysisDoneMsg{Error: result.Error, Result: result}
+		}
+		return AnalysisDoneMsg{Error: nil, Result: result}
+	}
 }
 
 func (a *App) startRealAnalysisCmd(p *tea.Program) tea.Cmd {
@@ -1646,7 +1695,7 @@ func (a *App) buildEngineConfig() growth.EngineConfig {
 
 	outputDir := a.configMgr.Config.OutputDir
 	if outputDir == "" {
-		outputDir = "./skene-context"
+		outputDir = constants.DefaultOutputDir
 	}
 	if !filepath.IsAbs(outputDir) {
 		outputDir = filepath.Join(projectDir, outputDir)
