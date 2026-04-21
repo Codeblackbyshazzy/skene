@@ -62,7 +62,27 @@ const (
 	GrowthManifestFile       = "growth-manifest.json"
 	ProductDocsFile          = "product-docs.md"
 	ImplementationPromptFile = "implementation-prompt.md"
+	SchemaFile               = "schema.yaml"
+	EngineFile               = "engine.yaml"
+	CompiledStateMachineFile = "compiled/state-machine.yaml"
 )
+
+// DashboardFile describes a file shown on the results dashboard.
+type DashboardFile struct {
+	ID          string
+	Filename    string
+	Description string
+}
+
+// DashboardFiles defines the output files shown on the results dashboard.
+var DashboardFiles = []DashboardFile{
+	{ID: "manifest", Filename: GrowthManifestFile, Description: FileDescManifest},
+	{ID: "template", Filename: GrowthTemplateFile, Description: FileDescTemplate},
+	{ID: "plan", Filename: GrowthPlanFile, Description: FileDescPlan},
+	{ID: "schema", Filename: SchemaFile, Description: FileDescSchema},
+	{ID: "engine", Filename: EngineFile, Description: FileDescEngine},
+	{ID: "compiled", Filename: CompiledStateMachineFile, Description: FileDescCompiledYAML},
+}
 
 // Skene ecosystem package metadata
 type PackageMeta struct {

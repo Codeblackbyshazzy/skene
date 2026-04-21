@@ -45,6 +45,7 @@ const (
 	StateAnalysisConfig                 // Analysis configuration
 	StateAnalyzing                      // Analysis progress
 	StateResults                        // Results dashboard
+	StateFileDetail                     // Single file detail view
 	StateNextSteps                      // Next steps after analysis
 	StateError                          // Error display
 	StateGame                           // Mini game during wait
@@ -145,6 +146,7 @@ type App struct {
 	analysisConfigView *views.AnalysisConfigView
 	analyzingView      *views.AnalyzingView
 	resultsView        *views.ResultsView
+	fileDetailView     *views.FileDetailView
 	nextStepsView      *views.NextStepsView
 	errorView          *views.ErrorView
 
@@ -349,15 +351,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if a.analyzingView != nil {
 				a.analyzingView.SetDone()
 			}
-			if msg.Result != nil {
-				a.resultsView = views.NewResultsViewWithContent(
-					msg.Result.GrowthPlan,
-					msg.Result.Manifest,
-					msg.Result.GrowthTemplate,
-				)
-			} else {
-				a.resultsView = views.NewResultsView()
-			}
+			a.resultsView = a.createResultsView()
 			a.resultsView.SetSize(a.width, a.height)
 			if a.state != StateGame && a.analyzingOrigin == StateAnalysisConfig {
 				a.state = StateResults
@@ -507,8 +501,10 @@ func (a *App) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 		return a.handleAnalyzingKeys(key)
 	case StateResults:
 		return a.handleResultsKeys(key)
+	case StateFileDetail:
+		return a.handleFileDetailKeys(key)
 	case StateNextSteps:
-		return a.handleNextStepsKeys(key)
+		return a.handleResultsKeys(key)
 	case StateError:
 		return a.handleErrorKeys(key)
 	case StateGame:
@@ -882,34 +878,38 @@ func (a *App) handleAnalyzingKeys(key string) tea.Cmd {
 }
 
 func (a *App) handleResultsKeys(key string) tea.Cmd {
+	if a.resultsView.IsShowingNextSteps() {
+		return a.handleNextStepsModalKeys(key)
+	}
 	switch key {
-	case "left", "h":
-		a.resultsView.HandleLeft()
-	case "right", "l":
-		a.resultsView.HandleRight()
 	case "up", "k":
 		a.resultsView.HandleUp()
 	case "down", "j":
 		a.resultsView.HandleDown()
-	case "n", "enter":
-		a.state = StateNextSteps
-		a.nextStepsView = views.NewNextStepsView()
-		a.nextStepsView.SetSize(a.width, a.height)
+	case "enter":
+		selected := a.resultsView.GetSelectedFile()
+		if selected != nil {
+			a.openFileDetail(selected)
+		}
+	case "n":
+		a.resultsView.ShowNextSteps()
 	}
 	return nil
 }
 
-func (a *App) handleNextStepsKeys(key string) tea.Cmd {
+func (a *App) handleNextStepsModalKeys(key string) tea.Cmd {
+	nsv := a.resultsView.GetNextStepsView()
 	switch key {
 	case "up", "k":
-		a.nextStepsView.HandleUp()
+		nsv.HandleUp()
 	case "down", "j":
-		a.nextStepsView.HandleDown()
+		nsv.HandleDown()
 	case "enter":
-		action := a.nextStepsView.GetSelectedAction()
+		action := nsv.GetSelectedAction()
 		if action == nil {
 			return nil
 		}
+		a.resultsView.HideNextSteps()
 		switch action.ID {
 		case "exit":
 			return tea.Quit
@@ -936,10 +936,52 @@ func (a *App) handleNextStepsKeys(key string) tea.Cmd {
 			_ = browser.OpenURL(outputDir)
 		}
 	case "esc":
-		a.refreshResultsView()
+		a.resultsView.HideNextSteps()
+	}
+	return nil
+}
+
+func (a *App) openFileDetail(def *constants.DashboardFile) {
+	outputDir := a.getOutputDir()
+	a.fileDetailView = views.NewFileDetailView(*def, outputDir)
+	a.fileDetailView.SetSize(a.width, a.height)
+	a.state = StateFileDetail
+}
+
+func (a *App) handleFileDetailKeys(key string) tea.Cmd {
+	switch key {
+	case "up", "k":
+		a.fileDetailView.HandleUp()
+	case "down", "j":
+		a.fileDetailView.HandleDown()
+	case "esc":
 		a.state = StateResults
 	}
 	return nil
+}
+
+func (a *App) getOutputDir() string {
+	projectDir := a.configMgr.Config.ProjectDir
+	if projectDir == "" {
+		projectDir, _ = os.Getwd()
+	}
+	return filepath.Join(projectDir, constants.OutputDirName)
+}
+
+func (a *App) getProjectName() string {
+	projectDir := a.configMgr.Config.ProjectDir
+	if projectDir == "" {
+		projectDir, _ = os.Getwd()
+	}
+	if projectDir == "." || projectDir == "./" {
+		return "./"
+	}
+	return "./" + filepath.Base(projectDir)
+}
+
+func (a *App) createResultsView() *views.ResultsView {
+	rv := views.NewResultsView(a.getProjectName(), a.getOutputDir())
+	return rv
 }
 
 func (a *App) handleErrorKeys(key string) tea.Cmd {
@@ -1094,14 +1136,7 @@ func (a *App) transitionToAnalysisConfig() {
 }
 
 func (a *App) transitionToResultsFromExisting() {
-	projectDir := a.configMgr.Config.ProjectDir
-	outputDir := filepath.Join(projectDir, constants.OutputDirName)
-
-	growthPlan := loadFileContent(filepath.Join(outputDir, constants.GrowthPlanFile))
-	manifest := loadFileContent(filepath.Join(outputDir, constants.GrowthManifestFile))
-	growthTemplate := loadFileContent(filepath.Join(outputDir, constants.GrowthTemplateFile))
-
-	a.resultsView = views.NewResultsViewWithContent(growthPlan, manifest, growthTemplate)
+	a.resultsView = a.createResultsView()
 	a.resultsView.SetSize(a.width, a.height)
 	a.state = StateResults
 }
@@ -1110,12 +1145,7 @@ func (a *App) refreshResultsView() {
 	if a.resultsView == nil {
 		return
 	}
-	projectDir := a.configMgr.Config.ProjectDir
-	if projectDir == "" {
-		return
-	}
-	outputDir := filepath.Join(projectDir, constants.OutputDirName)
-	a.resultsView.RefreshContent(outputDir)
+	a.resultsView.RefreshContent(a.getOutputDir())
 }
 
 func (a *App) applyAnalysisConfig() {
@@ -1163,11 +1193,7 @@ func (a *App) navigateBackFromAnalyzing() {
 	switch a.analyzingOrigin {
 	case StateNextSteps:
 		a.refreshResultsView()
-		a.state = StateNextSteps
-		if a.nextStepsView == nil {
-			a.nextStepsView = views.NewNextStepsView()
-		}
-		a.nextStepsView.SetSize(a.width, a.height)
+		a.state = StateResults
 	case StateAnalysisConfig:
 		a.state = StateAnalysisConfig
 		if a.analysisConfigView != nil {
@@ -1421,6 +1447,9 @@ func (a *App) updateViewSizes() {
 	if a.resultsView != nil {
 		a.resultsView.SetSize(a.width, a.height)
 	}
+	if a.fileDetailView != nil {
+		a.fileDetailView.SetSize(a.width, a.height)
+	}
 	if a.nextStepsView != nil {
 		a.nextStepsView.SetSize(a.width, a.height)
 	}
@@ -1480,6 +1509,10 @@ func (a *App) View() string {
 	case StateResults:
 		if a.resultsView != nil {
 			content = a.resultsView.Render()
+		}
+	case StateFileDetail:
+		if a.fileDetailView != nil {
+			content = a.fileDetailView.Render()
 		}
 	case StateNextSteps:
 		if a.nextStepsView != nil {
@@ -1566,6 +1599,10 @@ func (a *App) getCurrentHelpItems() []components.HelpItem {
 	case StateResults:
 		if a.resultsView != nil {
 			return a.resultsView.GetHelpItems()
+		}
+	case StateFileDetail:
+		if a.fileDetailView != nil {
+			return a.fileDetailView.GetHelpItems()
 		}
 	case StateNextSteps:
 		if a.nextStepsView != nil {

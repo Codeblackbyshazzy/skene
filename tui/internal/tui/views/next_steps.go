@@ -170,6 +170,58 @@ func (v *NextStepsView) renderCommandPreview(width int) string {
 		Render(preview)
 }
 
+// RenderModal renders the next steps as a compact floating modal.
+func (v *NextStepsView) RenderModal(width int) string {
+	titleRow := lipgloss.JoinHorizontal(lipgloss.Top,
+		styles.Title.Render(constants.StepNameNextSteps),
+		lipgloss.NewStyle().
+			Width(width-6-lipgloss.Width(constants.StepNameNextSteps)).
+			Align(lipgloss.Right).
+			Foreground(styles.MutedColor).
+			Render(constants.HelpKeyEsc),
+	)
+
+	// Flat action list — no inner box
+	contentWidth := width - 8
+	var items []string
+	for i, action := range v.actions {
+		isSelected := i == v.selectedIdx
+
+		var name string
+		if isSelected {
+			name = styles.ListItemSelected.Render(action.Name)
+		} else {
+			name = styles.ListItem.Render(action.Name)
+		}
+
+		desc := lipgloss.NewStyle().
+			Foreground(styles.MutedColor).
+			PaddingLeft(2).
+			Width(contentWidth).
+			Render(action.Description)
+
+		items = append(items, name+"\n"+desc)
+
+		if i < len(v.actions)-1 {
+			items = append(items, "")
+		}
+	}
+	list := lipgloss.JoinVertical(lipgloss.Left, items...)
+
+	content := lipgloss.JoinVertical(lipgloss.Left,
+		titleRow,
+		"",
+		list,
+	)
+
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(styles.MutedColor).
+		Padding(1, 2).
+		Width(width).
+		Render(content)
+}
+
 // GetHelpItems returns context-specific help
 func (v *NextStepsView) GetHelpItems() []components.HelpItem {
 	return []components.HelpItem{
