@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Skene — Engine Visualizer</title>
+</head>
+<body>
+  <div id="root" style="width:100vw;height:100vh;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"></div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.3.1",
+      "react-dom": "https://esm.sh/react-dom@18.3.1",
+      "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+      "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+      "@xyflow/react": "https://esm.sh/@xyflow/react@12.10.2?external=react,react-dom"
+    }
+  }
+  </script>
+
+  <link rel="stylesheet" href="https://esm.sh/@xyflow/react@12.10.2/dist/style.css" />
+
+  <script type="module">
+    import React, { useState, useEffect } from 'react';
+    import { createRoot } from 'react-dom/client';
+    import {
+      ReactFlow, Background, Controls, MiniMap,
+      useNodesState, useEdgesState,
+    } from '@xyflow/react';
+
+    const h = React.createElement;
+
+    function buildGraph(engine) {
+      const nodes = [];
+      const edges = [];
+      const subjects = engine.subjects || [];
+      const features = engine.features || [];
+
+      const featuresBySubject = {};
+      const unlinked = [];
+      features.forEach(f => {
+        const key = f.subject_state_analysis?.lifecycle_subject;
+        if (key && subjects.find(s => s.key === key)) {
+          (featuresBySubject[key] ??= []).push(f);
+        } else {
+          unlinked.push(f);
+        }
+      });
+
+      const ROW = 180;
+      let y = 0;
+
+      subjects.forEach(s => {
+        const group = featuresBySubject[s.key] || [];
+        const mid = y + Math.max(0, group.length - 1) * ROW / 2;
+
+        nodes.push({
+          id: `s-${s.key}`,
+          position: { x: 0, y: mid },
+          data: { label: `${s.key} (${s.kind})\n${s.table}` },
+        });
+
+        group.forEach((f, i) => {
+          const fid = `f-${f.key}`;
+          nodes.push({
+            id: fid,
+            position: { x: 350, y: y + i * ROW },
+            data: { label: f.name || f.key },
+          });
+          edges.push({
+            id: `e-${s.key}-${f.key}`,
+            source: `s-${s.key}`, target: fid,
+            type: 'smoothstep', animated: true,
+            label: f.source,
+          });
+          if (f.action) {
+            const aid = `a-${f.key}`;
+            nodes.push({
+              id: aid,
+              position: { x: 700, y: y + i * ROW },
+              data: { label: f.action.use },
+            });
+            edges.push({
+              id: `e-${f.key}-act`,
+              source: fid, target: aid,
+              type: 'smoothstep',
+            });
+          }
+        });
+        y += Math.max(1, group.length) * ROW + 40;
+      });
+
+      unlinked.forEach((f, i) => {
+        const fid = `f-${f.key}`;
+        nodes.push({
+          id: fid,
+          position: { x: 350, y: y + i * ROW },
+          data: { label: f.name || f.key },
+        });
+        if (f.action) {
+          const aid = `a-${f.key}`;
+          nodes.push({
+            id: aid,
+            position: { x: 700, y: y + i * ROW },
+            data: { label: f.action.use },
+          });
+          edges.push({
+            id: `e-${f.key}-act`,
+            source: fid, target: aid, type: 'smoothstep',
+          });
+        }
+      });
+
+      return { nodes, edges };
+    }
+
+    function App() {
+      const [result, setResult] = useState(null);
+      const [error, setError] = useState(null);
+
+      useEffect(() => {
+        fetch('/api/data')
+          .then(r => { if (!r.ok) throw new Error('Failed to load'); return r.json(); })
+          .then(d => setResult(d))
+          .catch(e => setError(e.message));
+      }, []);
+
+      if (error) return h('div', { style: { padding: 40, color: 'red' } }, 'Error: ' + error);
+      if (!result) return h('div', { style: { padding: 40 } }, 'Loading…');
+
+      const graph = buildGraph(result.data);
+
+      return h('div', { style: { width: '100vw', height: '100vh' } },
+        h(ReactFlow, {
+          defaultNodes: graph.nodes,
+          defaultEdges: graph.edges,
+          fitView: true,
+          colorMode: 'dark',
+          defaultEdgeOptions: { type: 'smoothstep' },
+        },
+          h(Background, null),
+          h(Controls, null),
+          h(MiniMap, null),
+        )
+      );
+    }
+
+    createRoot(document.getElementById('root')).render(h(App));
+  </script>
+</body>
+</html>

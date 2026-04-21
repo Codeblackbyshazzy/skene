@@ -1,12 +1,14 @@
 package views
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"skene/internal/constants"
 	"skene/internal/tui/components"
 	"skene/internal/tui/styles"
+	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -287,12 +289,14 @@ func (v *ResultsView) GetHelpItems() []components.HelpItem {
 
 // FileDetailView shows the content of a single file with scrolling.
 type FileDetailView struct {
-	width    int
-	height   int
-	fileDef  constants.DashboardFile
-	content  string
-	modTime  string
-	viewport scrollableViewport
+	width      int
+	height     int
+	fileDef    constants.DashboardFile
+	rawContent string
+	content    string
+	modTime    string
+	formatted  bool // true when content has custom formatting (skip lipgloss re-wrap)
+	viewport   scrollableViewport
 }
 
 // scrollableViewport is a minimal viewport for scrolling content.
@@ -373,12 +377,12 @@ func splitLines(s string) []string {
 // NewFileDetailView creates a file detail view for the given file.
 func NewFileDetailView(def constants.DashboardFile, outputDir string) *FileDetailView {
 	filePath := filepath.Join(outputDir, def.Filename)
-	content := ""
+	rawContent := ""
 	modTime := ""
 
 	data, err := os.ReadFile(filePath)
 	if err == nil {
-		content = string(data)
+		rawContent = string(data)
 	}
 
 	info, err := os.Stat(filePath)
@@ -387,10 +391,332 @@ func NewFileDetailView(def constants.DashboardFile, outputDir string) *FileDetai
 	}
 
 	return &FileDetailView{
-		fileDef: def,
-		content: content,
-		modTime: modTime,
+		fileDef:    def,
+		rawContent: rawContent,
+		content:    rawContent,
+		modTime:    modTime,
 	}
+}
+
+// formatNewFeatures parses the new-features.yaml JSON array and returns a
+// human-readable summary of each feature. contentWidth controls divider and
+// wrap width; pass 0 to use a sensible default.
+func formatNewFeatures(raw string, contentWidth int) string {
+	var features []struct {
+		Name        string `json:"name"`
+		Key         string `json:"key"`
+		Source      string `json:"source"`
+		HowItWorks  string `json:"how_it_works"`
+		MatchIntent string `json:"match_intent"`
+		Action      *struct {
+			Use string `json:"use"`
+		} `json:"action"`
+	}
+
+	if err := json.Unmarshal([]byte(raw), &features); err != nil {
+		return ""
+	}
+
+	if contentWidth < 40 {
+		contentWidth = 60
+	}
+	w2 := contentWidth - 2 // "  " prefix
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("  %d feature(s) planned\n", len(features)))
+
+	for i, f := range features {
+		sb.WriteString("\n")
+		sb.WriteString(styles.Divider(contentWidth))
+		sb.WriteString("\n\n")
+
+		title := f.Name
+		if title == "" {
+			title = f.Key
+		}
+		styledTitle := styles.AccentStyle().Bold(true).Render(fmt.Sprintf("%d. %s", i+1, title))
+		sb.WriteString("  " + styledTitle + "\n\n")
+
+		sb.WriteString(fmt.Sprintf("  Source:  %s\n", f.Source))
+		if f.Action != nil {
+			sb.WriteString(fmt.Sprintf("  Action:  %s\n", f.Action.Use))
+		}
+
+		if f.HowItWorks != "" {
+			sb.WriteString("\n")
+			for _, line := range wrapText(f.HowItWorks, w2) {
+				sb.WriteString("  " + line + "\n")
+			}
+		}
+	}
+
+	sb.WriteString("\n")
+	sb.WriteString(styles.Divider(contentWidth))
+	return sb.String()
+}
+
+// formatForDisplay routes a file to its human-readable formatter.
+func formatForDisplay(fileID, raw string, width int) string {
+	switch fileID {
+	case "new-features":
+		return formatNewFeatures(raw, width)
+	case "manifest":
+		return formatManifest(raw, width)
+	case "template":
+		return formatTemplate(raw, width)
+	default:
+		return ""
+	}
+}
+
+// formatManifest renders growth-manifest.json as a readable summary.
+func formatManifest(raw string, contentWidth int) string {
+	var m struct {
+		ProjectName string `json:"project_name"`
+		Description string `json:"description"`
+		TechStack   struct {
+			Framework      string   `json:"framework"`
+			Language       string   `json:"language"`
+			Database       string   `json:"database"`
+			Auth           string   `json:"auth"`
+			Deployment     string   `json:"deployment"`
+			PackageManager string   `json:"package_manager"`
+			Services       []string `json:"services"`
+		} `json:"tech_stack"`
+		Industry struct {
+			Primary   string   `json:"primary"`
+			Secondary []string `json:"secondary"`
+		} `json:"industry"`
+		CurrentGrowthFeatures []struct {
+			FeatureName     string   `json:"feature_name"`
+			DetectedIntent  string   `json:"detected_intent"`
+			ConfidenceScore float64  `json:"confidence_score"`
+			GrowthPotential []string `json:"growth_potential"`
+		} `json:"current_growth_features"`
+		GrowthOpportunities []struct {
+			FeatureName string `json:"feature_name"`
+			Description string `json:"description"`
+			Priority    string `json:"priority"`
+		} `json:"growth_opportunities"`
+	}
+
+	if err := json.Unmarshal([]byte(raw), &m); err != nil {
+		return ""
+	}
+
+	if contentWidth < 40 {
+		contentWidth = 60
+	}
+	// Wrap widths accounting for indentation prefixes
+	w2 := contentWidth - 2  // "  " prefix
+	w5 := contentWidth - 5  // "     " prefix
+
+	var sb strings.Builder
+
+	// Project header
+	sb.WriteString("  " + styles.AccentStyle().Bold(true).Render(m.ProjectName) + "\n\n")
+	for _, line := range wrapText(m.Description, w2) {
+		sb.WriteString("  " + line + "\n")
+	}
+
+	// Tech stack
+	sb.WriteString("\n")
+	sb.WriteString(styles.Divider(contentWidth))
+	sb.WriteString("\n\n")
+	sb.WriteString("  " + styles.AccentStyle().Bold(true).Render("Tech Stack") + "\n\n")
+	if m.TechStack.Framework != "" {
+		sb.WriteString(fmt.Sprintf("  Framework:  %s\n", m.TechStack.Framework))
+	}
+	if m.TechStack.Language != "" {
+		sb.WriteString(fmt.Sprintf("  Language:   %s\n", m.TechStack.Language))
+	}
+	if m.TechStack.Database != "" {
+		sb.WriteString(fmt.Sprintf("  Database:   %s\n", m.TechStack.Database))
+	}
+	if m.TechStack.Auth != "" {
+		sb.WriteString(fmt.Sprintf("  Auth:       %s\n", m.TechStack.Auth))
+	}
+	if m.TechStack.Deployment != "" {
+		sb.WriteString(fmt.Sprintf("  Deployment: %s\n", m.TechStack.Deployment))
+	}
+	if len(m.TechStack.Services) > 0 {
+		sb.WriteString(fmt.Sprintf("  Services:   %s\n", strings.Join(m.TechStack.Services, ", ")))
+	}
+
+	// Industry
+	if m.Industry.Primary != "" {
+		sb.WriteString("\n")
+		sb.WriteString(styles.Divider(contentWidth))
+		sb.WriteString("\n\n")
+		sb.WriteString("  " + styles.AccentStyle().Bold(true).Render("Industry") + "\n\n")
+		sb.WriteString(fmt.Sprintf("  Primary:    %s\n", m.Industry.Primary))
+		if len(m.Industry.Secondary) > 0 {
+			sb.WriteString(fmt.Sprintf("  Secondary:  %s\n", strings.Join(m.Industry.Secondary, ", ")))
+		}
+	}
+
+	// Current growth features
+	if len(m.CurrentGrowthFeatures) > 0 {
+		sb.WriteString("\n")
+		sb.WriteString(styles.Divider(contentWidth))
+		sb.WriteString("\n\n")
+		sb.WriteString("  " + styles.AccentStyle().Bold(true).Render(
+			fmt.Sprintf("Current Growth Features (%d)", len(m.CurrentGrowthFeatures)),
+		) + "\n")
+
+		for i, f := range m.CurrentGrowthFeatures {
+			sb.WriteString("\n")
+			sb.WriteString(fmt.Sprintf("  %d. %s", i+1, f.FeatureName))
+			if f.ConfidenceScore > 0 {
+				sb.WriteString(fmt.Sprintf("  (%.0f%%)", f.ConfidenceScore*100))
+			}
+			sb.WriteString("\n")
+			if f.DetectedIntent != "" {
+				for _, line := range wrapText(f.DetectedIntent, w5) {
+					sb.WriteString("     " + line + "\n")
+				}
+			}
+		}
+	}
+
+	// Growth opportunities
+	if len(m.GrowthOpportunities) > 0 {
+		sb.WriteString("\n")
+		sb.WriteString(styles.Divider(contentWidth))
+		sb.WriteString("\n\n")
+		sb.WriteString("  " + styles.AccentStyle().Bold(true).Render(
+			fmt.Sprintf("Growth Opportunities (%d)", len(m.GrowthOpportunities)),
+		) + "\n")
+
+		for i, o := range m.GrowthOpportunities {
+			sb.WriteString("\n")
+			priority := strings.ToUpper(o.Priority)
+			sb.WriteString(fmt.Sprintf("  %d. %s  [%s]\n", i+1, o.FeatureName, priority))
+			if o.Description != "" {
+				for _, line := range wrapText(o.Description, w5) {
+					sb.WriteString("     " + line + "\n")
+				}
+			}
+		}
+	}
+
+	sb.WriteString("\n")
+	sb.WriteString(styles.Divider(contentWidth))
+	return sb.String()
+}
+
+// formatTemplate renders growth-template.json as a readable lifecycle summary.
+func formatTemplate(raw string, contentWidth int) string {
+	var t struct {
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		Lifecycles  []struct {
+			Name        string `json:"name"`
+			Description string `json:"description"`
+			Milestones  []struct {
+				Title       string `json:"title"`
+				Description string `json:"description"`
+			} `json:"milestones"`
+			Metrics []struct {
+				Name             string `json:"name"`
+				HowToMeasure     string `json:"howToMeasure"`
+				HealthyBenchmark string `json:"healthyBenchmark"`
+			} `json:"metrics"`
+		} `json:"lifecycles"`
+	}
+
+	if err := json.Unmarshal([]byte(raw), &t); err != nil {
+		return ""
+	}
+
+	if contentWidth < 40 {
+		contentWidth = 60
+	}
+	w2 := contentWidth - 2
+	w4 := contentWidth - 4
+	w5 := contentWidth - 5
+
+	var sb strings.Builder
+
+	// Header
+	title := t.Title
+	if title == "" {
+		title = "Growth Template"
+	}
+	sb.WriteString("  " + styles.AccentStyle().Bold(true).Render(title) + "\n\n")
+	if t.Description != "" {
+		for _, line := range wrapText(t.Description, w2) {
+			sb.WriteString("  " + line + "\n")
+		}
+	}
+
+	// Lifecycles
+	for _, lc := range t.Lifecycles {
+		sb.WriteString("\n")
+		sb.WriteString(styles.Divider(contentWidth))
+		sb.WriteString("\n\n")
+
+		header := lc.Name
+		if lc.Description != "" {
+			header += " — " + lc.Description
+		}
+		sb.WriteString("  " + styles.AccentStyle().Bold(true).Render(header) + "\n")
+
+		// Milestones
+		if len(lc.Milestones) > 0 {
+			sb.WriteString("\n  Milestones:\n")
+			for i, ms := range lc.Milestones {
+				sb.WriteString(fmt.Sprintf("\n  %d. %s\n", i+1, ms.Title))
+				if ms.Description != "" {
+					for _, line := range wrapText(ms.Description, w5) {
+						sb.WriteString("     " + line + "\n")
+					}
+				}
+			}
+		}
+
+		// Metrics
+		if len(lc.Metrics) > 0 {
+			sb.WriteString("\n  Metrics:\n")
+			for _, mt := range lc.Metrics {
+				sb.WriteString(fmt.Sprintf("\n  • %s", mt.Name))
+				if mt.HealthyBenchmark != "" {
+					sb.WriteString(fmt.Sprintf("  [%s]", mt.HealthyBenchmark))
+				}
+				sb.WriteString("\n")
+				if mt.HowToMeasure != "" {
+					for _, line := range wrapText(mt.HowToMeasure, w4) {
+						sb.WriteString("    " + line + "\n")
+					}
+				}
+			}
+		}
+	}
+
+	sb.WriteString("\n")
+	sb.WriteString(styles.Divider(contentWidth))
+	return sb.String()
+}
+
+// wrapText breaks text into lines of at most maxWidth characters,
+// splitting on word boundaries.
+func wrapText(text string, maxWidth int) []string {
+	words := strings.Fields(text)
+	if len(words) == 0 {
+		return nil
+	}
+	var lines []string
+	current := words[0]
+	for _, w := range words[1:] {
+		if len(current)+1+len(w) > maxWidth {
+			lines = append(lines, current)
+			current = w
+		} else {
+			current += " " + w
+		}
+	}
+	lines = append(lines, current)
+	return lines
 }
 
 // SetSize updates dimensions.
@@ -406,6 +732,15 @@ func (v *FileDetailView) SetSize(width, height int) {
 		vpWidth = 30
 	}
 
+	// Re-format content for files that need special rendering
+	v.formatted = false
+	if v.rawContent != "" {
+		if formatted := formatForDisplay(v.fileDef.ID, v.rawContent, vpWidth); formatted != "" {
+			v.content = formatted
+			v.formatted = true
+		}
+	}
+
 	// back indicator (1) + blank (1) + info box (~8) + blank (1) + content box chrome (border+padding ~4) + footer (3) + outer padding (2)
 	vpHeight := height - 20
 	if vpHeight < 5 {
@@ -416,8 +751,13 @@ func (v *FileDetailView) SetSize(width, height int) {
 	}
 
 	v.viewport.height = vpHeight
-	wrapped := lipgloss.NewStyle().Width(vpWidth).Render(v.content)
-	v.viewport.setContent(wrapped, vpWidth)
+
+	if v.formatted {
+		v.viewport.setContent(v.content, vpWidth)
+	} else {
+		wrapped := lipgloss.NewStyle().Width(vpWidth).Render(v.content)
+		v.viewport.setContent(wrapped, vpWidth)
+	}
 }
 
 // HandleUp scrolls content up.

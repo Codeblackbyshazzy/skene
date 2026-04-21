@@ -33,12 +33,20 @@ const (
 	FileDescPlan           = "Prioritized growth plan with implementation roadmap."
 	FileDescSchema         = "Introspected data schema of the codebase."
 	FileDescEngine         = "Engine configuration with growth features and user journey."
+	FileDescNewFeatures    = "Newly planned features from the latest analysis run."
 	FileDescCompiledYAML   = "Compiled state machine for Supabase backend edge function."
 )
 
 // File detail view
 const (
 	FileDetailUpdatedFormat = "Last updated: %s"
+)
+
+// Engine visualizer
+const (
+	VisualizerStarting = "Starting engine visualizer..."
+	VisualizerURL      = "Engine visualizer running at %s"
+	VisualizerStopping = "Stopping engine visualizer..."
 )
 
 // Next steps view

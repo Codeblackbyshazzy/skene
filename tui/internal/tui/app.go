@@ -15,6 +15,7 @@ import (
 	"skene/internal/services/config"
 	"skene/internal/services/growth"
 	"skene/internal/services/versioncheck"
+	"skene/internal/services/visualizer"
 	"skene/internal/tui/components"
 	"skene/internal/tui/styles"
 	"skene/internal/tui/views"
@@ -163,6 +164,9 @@ type App struct {
 	// Cancellation for running processes
 	cancelFunc      context.CancelFunc
 	analyzingOrigin AppState // state to return to when cancelling/failing
+
+	// Visualizer
+	visualizerServer *visualizer.Server
 
 	// Auth state
 	authCountdown  int
@@ -866,6 +870,7 @@ func (a *App) handleAnalyzingKeys(key string) tea.Cmd {
 			a.navigateBackFromAnalyzing()
 		} else if a.analyzingView.IsDone() {
 			if a.resultsView != nil {
+				a.refreshResultsView()
 				a.state = StateResults
 			} else {
 				a.navigateBackFromAnalyzing()
@@ -893,7 +898,11 @@ func (a *App) handleResultsKeys(key string) tea.Cmd {
 	case "enter":
 		selected := a.resultsView.GetSelectedFile()
 		if selected != nil {
-			a.openFileDetail(selected)
+			if selected.ID == "engine" {
+				a.openYAMLVisualizer(selected)
+			} else {
+				a.openFileDetail(selected)
+			}
 		}
 	case "n":
 		a.resultsView.ShowNextSteps()
@@ -954,6 +963,24 @@ func (a *App) openFileDetail(def *constants.DashboardFile) {
 	a.state = StateFileDetail
 }
 
+func (a *App) openYAMLVisualizer(def *constants.DashboardFile) {
+	filePath := filepath.Join(a.getOutputDir(), def.Filename)
+	if _, err := os.Stat(filePath); err != nil {
+		return
+	}
+
+	if a.visualizerServer != nil {
+		a.visualizerServer.Stop()
+	}
+
+	a.visualizerServer = visualizer.NewServer(filePath, def.Filename)
+	url, err := a.visualizerServer.Start()
+	if err != nil {
+		return
+	}
+	_ = browser.OpenURL(url)
+}
+
 func (a *App) handleFileDetailKeys(key string) tea.Cmd {
 	switch key {
 	case "up", "k":
@@ -961,6 +988,7 @@ func (a *App) handleFileDetailKeys(key string) tea.Cmd {
 	case "down", "j":
 		a.fileDetailView.HandleDown()
 	case "esc":
+		a.refreshResultsView()
 		a.state = StateResults
 	}
 	return nil
@@ -1020,6 +1048,7 @@ func (a *App) handleGameKeys(msg tea.KeyMsg) tea.Cmd {
 			a.game.ClearProgressInfo()
 		}
 		if a.prevState == StateAnalyzing && a.resultsView != nil && a.analyzingView != nil && a.analyzingView.IsDone() && !a.analyzingView.HasFailed() && a.analyzingOrigin == StateAnalysisConfig {
+			a.refreshResultsView()
 			a.state = StateResults
 		} else {
 			a.state = a.prevState
@@ -1788,6 +1817,15 @@ func skeneBaseURL() string {
 		return "http://localhost:3000/api/v1"
 	}
 	return "https://www.skene.ai/api/v1"
+}
+
+// Cleanup releases resources held by the app (e.g. background servers).
+// Call after the Bubble Tea program exits.
+func (a *App) Cleanup() {
+	if a.visualizerServer != nil {
+		a.visualizerServer.Stop()
+		a.visualizerServer = nil
+	}
 }
 
 // resolveSkeneAPIKey picks the API key for the skene provider.

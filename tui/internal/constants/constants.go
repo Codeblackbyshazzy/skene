@@ -64,6 +64,7 @@ const (
 	ImplementationPromptFile = "implementation-prompt.md"
 	SchemaFile               = "schema.yaml"
 	EngineFile               = "engine.yaml"
+	NewFeaturesFile          = "new-features.yaml"
 	CompiledStateMachineFile = "compiled/state-machine.yaml"
 )
 
@@ -81,6 +82,7 @@ var DashboardFiles = []DashboardFile{
 	{ID: "plan", Filename: GrowthPlanFile, Description: FileDescPlan},
 	{ID: "schema", Filename: SchemaFile, Description: FileDescSchema},
 	{ID: "engine", Filename: EngineFile, Description: FileDescEngine},
+	{ID: "new-features", Filename: NewFeaturesFile, Description: FileDescNewFeatures},
 	{ID: "compiled", Filename: CompiledStateMachineFile, Description: FileDescCompiledYAML},
 }
 
