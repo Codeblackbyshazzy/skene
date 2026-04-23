@@ -821,17 +821,11 @@ func (a *App) handleProjectDirNextStepsKeys(key string) tea.Cmd {
 			a.analyzingOrigin = StateProjectDir
 			return cmd
 		case "plan":
-			cmd := a.runEngineCommand("Generating Growth Plan", "plan")
-			a.analyzingOrigin = StateProjectDir
-			return cmd
+			return a.runEngineCommand("Generating Growth Plan", "plan")
 		case "build":
-			cmd := a.runEngineCommand("Building Implementation Prompt", "build")
-			a.analyzingOrigin = StateProjectDir
-			return cmd
+			return a.runEngineCommand("Building Implementation Prompt", "build")
 		case "validate":
-			cmd := a.runEngineCommand("Validating Manifest", "validate")
-			a.analyzingOrigin = StateProjectDir
-			return cmd
+			return a.runEngineCommand("Validating Manifest", "validate")
 		case "view-files":
 			a.transitionToResultsFromExisting()
 		case "open":
@@ -1413,7 +1407,7 @@ func (a *App) runEngineCommand(title string, command string) tea.Cmd {
 	a.analyzingView = views.NewCommandView(title)
 	a.analyzingView.SetSize(a.width, a.height)
 	a.analysisStartTime = time.Now()
-	a.analyzingOrigin = StateNextSteps
+	a.analyzingOrigin = StateProjectDir
 	a.state = StateAnalyzing
 
 	cfg := a.buildEngineConfig()
