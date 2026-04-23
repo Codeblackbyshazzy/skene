@@ -23,7 +23,10 @@ def status(
         None,
         "--context",
         "-c",
-        help="Deprecated: if set to a Skene bundle directory (skene/ or skene-context/), parent folder is treated as project root",
+        help=(
+            "Deprecated: if set to a Skene bundle directory (skene/ or legacy skene-context/), "
+            "parent folder is treated as project root"
+        ),
     ),
     find_alternatives: bool = typer.Option(
         False,
