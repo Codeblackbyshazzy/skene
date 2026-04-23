@@ -157,9 +157,7 @@ def push(
         )
         if result.get("ok"):
             if result.get("status") == "noop":
-                success(
-                    "Nothing new to deploy — your artifacts match what is already stored upstream."
-                )
+                success("Nothing new to deploy — your artifacts match what is already stored upstream.")
                 output_status(
                     "The workspace was not updated (noop). Change artifacts locally and push again if needed."
                 )

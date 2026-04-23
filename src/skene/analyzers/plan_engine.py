@@ -292,9 +292,7 @@ def _schema_for_prompt(schema: dict[str, Any], max_chars: int = 14_000) -> str:
     return rendered
 
 
-def _select_opportunities(
-    manifest: dict[str, Any], count: int
-) -> list[dict[str, Any]]:
+def _select_opportunities(manifest: dict[str, Any], count: int) -> list[dict[str, Any]]:
     opportunities = manifest.get("growth_opportunities") or []
     if not isinstance(opportunities, list):
         return []

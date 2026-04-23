@@ -159,10 +159,7 @@ async def _run_growth_stage(
             stage=Stage.GROWTH,
             status=StageStatus.SUCCESS,
             artifact=output_path,
-            summary=(
-                f"{len(state.features)} feature(s), "
-                f"{len(state.growth_opportunities)} opportunity(ies)"
-            ),
+            summary=(f"{len(state.features)} feature(s), {len(state.growth_opportunities)} opportunity(ies)"),
         )
     )
     return True

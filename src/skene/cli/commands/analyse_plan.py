@@ -121,10 +121,7 @@ def analyse_plan_cmd(
 
     schema_path = resolve_artifact_path(schema, "schema.yaml")
     if not schema_path.exists():
-        error(
-            f"Schema file not found: {schema_path}\n"
-            "Run 'skene analyse-journey' first, or pass --schema <path>."
-        )
+        error(f"Schema file not found: {schema_path}\nRun 'skene analyse-journey' first, or pass --schema <path>.")
         raise typer.Exit(1)
 
     manifest_path = resolve_artifact_path(manifest, "growth-manifest.json")

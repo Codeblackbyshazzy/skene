@@ -177,8 +177,7 @@ def push_to_upstream(
                 "ok": False,
                 "error": "server",
                 "message": (
-                    f"Upstream returned 200 (expected 201 for a new deploy). "
-                    f"Response: {data!r}"
+                    f"Upstream returned 200 (expected 201 for a new deploy). Response: {data!r}"
                     if isinstance(data, dict)
                     else f"Upstream returned 200 with unexpected JSON: {data!r}"
                 ),

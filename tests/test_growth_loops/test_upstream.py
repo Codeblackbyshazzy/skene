@@ -137,9 +137,7 @@ class TestPushToUpstream:
         (tmp_path / "skene").mkdir(parents=True)
         (tmp_path / "skene" / "engine.yaml").write_text("version: 1\nsubjects: []\nfeatures: []\n")
         (tmp_path / "supabase" / "migrations").mkdir(parents=True)
-        (tmp_path / "supabase" / "migrations" / "20260304151537_skene_triggers.sql").write_text(
-            "CREATE TRIGGER"
-        )
+        (tmp_path / "supabase" / "migrations" / "20260304151537_skene_triggers.sql").write_text("CREATE TRIGGER")
         mock_post.return_value.status_code = 200
         mock_post.return_value.json.return_value = {
             "status": "noop",

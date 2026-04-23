@@ -90,9 +90,7 @@ class SchemaState:
         """Return a serialisable dict ready for YAML dump."""
         return {
             "schema_format": "introspection",
-            "tables": [
-                {"name": name, **payload} for name, payload in sorted(self.tables.items())
-            ],
+            "tables": [{"name": name, **payload} for name, payload in sorted(self.tables.items())],
             "notes": list(self.notes),
         }
 
@@ -265,9 +263,7 @@ def _merge_tables(state: SchemaState, tables: dict[str, Any]) -> None:
         )
 
         if desc := payload.get("description"):
-            if isinstance(desc, str) and (
-                not existing.get("description") or len(desc) > len(existing["description"])
-            ):
+            if isinstance(desc, str) and (not existing.get("description") or len(desc) > len(existing["description"])):
                 existing["description"] = desc
 
         for col in payload.get("columns") or []:
@@ -400,9 +396,7 @@ async def _ddl_prime_step(
     state: SchemaState,
     max_snippet_chars: int,
 ) -> None:
-    ddl_files = await asyncio.to_thread(
-        discover_files_by_globs, path, DDL_GLOBS, excludes, DDL_MAX_FILES
-    )
+    ddl_files = await asyncio.to_thread(discover_files_by_globs, path, DDL_GLOBS, excludes, DDL_MAX_FILES)
     if not ddl_files:
         status("Priming: no migration / ORM schema files found, skipping")
         return
@@ -547,9 +541,7 @@ async def analyse_journey(
             next_keyword = parsed.get("next_keyword")
             if isinstance(next_keyword, str):
                 next_keyword = next_keyword.strip()
-                if next_keyword and next_keyword.lower() not in {
-                    e.lower() for e in state.explored_keywords
-                }:
+                if next_keyword and next_keyword.lower() not in {e.lower() for e in state.explored_keywords}:
                     # LLM-suggested keyword jumps to the head of the queue — it
                     # was picked because the model thinks it's most productive
                     # right now.

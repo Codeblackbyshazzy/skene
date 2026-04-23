@@ -407,9 +407,7 @@ async def _infer_hypotheses(llm: LLMClient, state: GrowthState) -> None:
             continue
         name = (h.get("feature_name") or "").strip()
         terms = [t for t in (h.get("search_terms") or []) if isinstance(t, str) and t.strip()]
-        evidence = [
-            e for e in (h.get("schema_evidence") or []) if isinstance(e, str) and e.strip()
-        ]
+        evidence = [e for e in (h.get("schema_evidence") or []) if isinstance(e, str) and e.strip()]
         if not name or not terms or not evidence:
             continue
         priority = h.get("priority") if h.get("priority") in ("high", "medium", "low") else "medium"
@@ -456,9 +454,7 @@ def _gather_evidence(
     return blocks
 
 
-def _schema_excerpt_for_hypothesis(
-    hypothesis: dict[str, Any], schema: dict[str, Any], max_chars: int = 2_500
-) -> str:
+def _schema_excerpt_for_hypothesis(hypothesis: dict[str, Any], schema: dict[str, Any], max_chars: int = 2_500) -> str:
     """Pull the small slice of schema that this hypothesis references."""
     referenced: set[str] = set()
     for ev in hypothesis.get("schema_evidence", []):
@@ -472,9 +468,7 @@ def _schema_excerpt_for_hypothesis(
     picked: list[dict[str, Any]] = []
     for t in tables:
         tname = str(t.get("name", "")).lower()
-        if tname in referenced or any(
-            tname == r.split(".")[1] for r in referenced if "." in r
-        ):
+        if tname in referenced or any(tname == r.split(".")[1] for r in referenced if "." in r):
             picked.append(t)
     if not picked:
         picked = tables[:4]
@@ -528,9 +522,7 @@ async def _ground_hypotheses(
                 _merge_feature(state, normalised)
 
 
-def _normalise_feature(
-    feat: dict[str, Any], fallback: dict[str, Any]
-) -> dict[str, Any] | None:
+def _normalise_feature(feat: dict[str, Any], fallback: dict[str, Any]) -> dict[str, Any] | None:
     name = (feat.get("feature_name") or fallback.get("feature_name") or "").strip()
     intent = (feat.get("detected_intent") or fallback.get("detected_intent") or "").strip()
     if not name or not intent:
@@ -547,9 +539,7 @@ def _normalise_feature(
         "detected_intent": intent,
         "confidence_score": score,
         "growth_potential": [
-            s.strip()
-            for s in (feat.get("growth_potential") or [])
-            if isinstance(s, str) and s.strip()
+            s.strip() for s in (feat.get("growth_potential") or []) if isinstance(s, str) and s.strip()
         ],
     }
 
@@ -582,9 +572,7 @@ async def _infer_features_from_codebase(
 
     Used when the journey analyzer could not discover any database tables.
     """
-    doc_files = await asyncio.to_thread(
-        discover_files_by_globs, path, PRIME_GLOBS, excludes, PRIME_MAX_FILES
-    )
+    doc_files = await asyncio.to_thread(discover_files_by_globs, path, PRIME_GLOBS, excludes, PRIME_MAX_FILES)
     doc_parts = [read_file_snippet(f, path, PRIME_MAX_CHARS_PER_FILE) for f in doc_files]
 
     seen: set[str] = set()
@@ -617,10 +605,7 @@ async def _infer_features_from_codebase(
     if len(snippets) > SCHEMALESS_MAX_SNIPPET_CHARS:
         snippets = snippets[:SCHEMALESS_MAX_SNIPPET_CHARS] + "\n\n...[truncated]"
 
-    status(
-        f"Schemaless feature inference: {len(doc_files)} doc file(s), "
-        f"{len(code_blocks)} growth-keyword snippet(s)"
-    )
+    status(f"Schemaless feature inference: {len(doc_files)} doc file(s), {len(code_blocks)} growth-keyword snippet(s)")
 
     prompt = SCHEMALESS_FEATURES_PROMPT.format(
         snippets=snippets,
@@ -658,9 +643,7 @@ async def _enrich_manifest(
     state: GrowthState,
     excludes: list[str],
 ) -> None:
-    files = await asyncio.to_thread(
-        discover_files_by_globs, path, PRIME_GLOBS, excludes, PRIME_MAX_FILES
-    )
+    files = await asyncio.to_thread(discover_files_by_globs, path, PRIME_GLOBS, excludes, PRIME_MAX_FILES)
     if not files:
         status("Enrichment: no README / package manifest files found")
         docs = ""
@@ -796,9 +779,7 @@ async def analyse_growth_from_schema(
             await _infer_hypotheses(llm, state)
             await _ground_hypotheses(llm, path, state, excludes)
         else:
-            status(
-                "No schema tables — falling back to codebase-only feature inference"
-            )
+            status("No schema tables — falling back to codebase-only feature inference")
             await _infer_features_from_codebase(llm, path, state, excludes)
 
         await _enrich_manifest(llm, path, state, excludes)
