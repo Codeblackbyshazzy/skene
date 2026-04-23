@@ -153,7 +153,7 @@ def render_kickoff_panel(
     console.print(Panel.fit("\n".join(lines), title=title, border_style="blue"))
 
 
-def render_stage_header(index: int, total: int, stage: Stage) -> None:
+def render_stage_header(stage: Stage, index: int, total: int) -> None:
     """Print a visual separator before a stage starts."""
     label = _STAGE_LABEL[stage]
     console.print(f"\n[bold blue]── [{index}/{total}] {label} ──[/bold blue]\n")
