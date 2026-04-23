@@ -418,7 +418,7 @@ func formatNewFeatures(raw string, contentWidth int) string {
 	w2 := contentWidth - 2 // "  " prefix
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("  %d feature(s) planned\n", len(features)))
+	fmt.Fprintf(&sb, "  %d feature(s) planned\n", len(features))
 
 	for i, f := range features {
 		sb.WriteString("\n")
@@ -432,9 +432,9 @@ func formatNewFeatures(raw string, contentWidth int) string {
 		styledTitle := styles.AccentStyle().Bold(true).Render(fmt.Sprintf("%d. %s", i+1, title))
 		sb.WriteString("  " + styledTitle + "\n\n")
 
-		sb.WriteString(fmt.Sprintf("  Source:  %s\n", f.Source))
+		fmt.Fprintf(&sb, "  Source:  %s\n", f.Source)
 		if f.Action != nil {
-			sb.WriteString(fmt.Sprintf("  Action:  %s\n", f.Action.Use))
+			fmt.Fprintf(&sb, "  Action:  %s\n", f.Action.Use)
 		}
 
 		if f.HowItWorks != "" {
@@ -520,22 +520,22 @@ func formatManifest(raw string, contentWidth int) string {
 	sb.WriteString("\n\n")
 	sb.WriteString("  " + styles.AccentStyle().Bold(true).Render("Tech Stack") + "\n\n")
 	if m.TechStack.Framework != "" {
-		sb.WriteString(fmt.Sprintf("  Framework:  %s\n", m.TechStack.Framework))
+		fmt.Fprintf(&sb, "  Framework:  %s\n", m.TechStack.Framework)
 	}
 	if m.TechStack.Language != "" {
-		sb.WriteString(fmt.Sprintf("  Language:   %s\n", m.TechStack.Language))
+		fmt.Fprintf(&sb, "  Language:   %s\n", m.TechStack.Language)
 	}
 	if m.TechStack.Database != "" {
-		sb.WriteString(fmt.Sprintf("  Database:   %s\n", m.TechStack.Database))
+		fmt.Fprintf(&sb, "  Database:   %s\n", m.TechStack.Database)
 	}
 	if m.TechStack.Auth != "" {
-		sb.WriteString(fmt.Sprintf("  Auth:       %s\n", m.TechStack.Auth))
+		fmt.Fprintf(&sb, "  Auth:       %s\n", m.TechStack.Auth)
 	}
 	if m.TechStack.Deployment != "" {
-		sb.WriteString(fmt.Sprintf("  Deployment: %s\n", m.TechStack.Deployment))
+		fmt.Fprintf(&sb, "  Deployment: %s\n", m.TechStack.Deployment)
 	}
 	if len(m.TechStack.Services) > 0 {
-		sb.WriteString(fmt.Sprintf("  Services:   %s\n", strings.Join(m.TechStack.Services, ", ")))
+		fmt.Fprintf(&sb, "  Services:   %s\n", strings.Join(m.TechStack.Services, ", "))
 	}
 
 	// Industry
@@ -544,9 +544,9 @@ func formatManifest(raw string, contentWidth int) string {
 		sb.WriteString(styles.Divider(contentWidth))
 		sb.WriteString("\n\n")
 		sb.WriteString("  " + styles.AccentStyle().Bold(true).Render("Industry") + "\n\n")
-		sb.WriteString(fmt.Sprintf("  Primary:    %s\n", m.Industry.Primary))
+		fmt.Fprintf(&sb, "  Primary:    %s\n", m.Industry.Primary)
 		if len(m.Industry.Secondary) > 0 {
-			sb.WriteString(fmt.Sprintf("  Secondary:  %s\n", strings.Join(m.Industry.Secondary, ", ")))
+			fmt.Fprintf(&sb, "  Secondary:  %s\n", strings.Join(m.Industry.Secondary, ", "))
 		}
 	}
 
@@ -561,9 +561,9 @@ func formatManifest(raw string, contentWidth int) string {
 
 		for i, f := range m.CurrentGrowthFeatures {
 			sb.WriteString("\n")
-			sb.WriteString(fmt.Sprintf("  %d. %s", i+1, f.FeatureName))
+			fmt.Fprintf(&sb, "  %d. %s", i+1, f.FeatureName)
 			if f.ConfidenceScore > 0 {
-				sb.WriteString(fmt.Sprintf("  (%.0f%%)", f.ConfidenceScore*100))
+				fmt.Fprintf(&sb, "  (%.0f%%)", f.ConfidenceScore*100)
 			}
 			sb.WriteString("\n")
 			if f.DetectedIntent != "" {
@@ -586,7 +586,7 @@ func formatManifest(raw string, contentWidth int) string {
 		for i, o := range m.GrowthOpportunities {
 			sb.WriteString("\n")
 			priority := strings.ToUpper(o.Priority)
-			sb.WriteString(fmt.Sprintf("  %d. %s  [%s]\n", i+1, o.FeatureName, priority))
+			fmt.Fprintf(&sb, "  %d. %s  [%s]\n", i+1, o.FeatureName, priority)
 			if o.Description != "" {
 				for _, line := range wrapText(o.Description, w5) {
 					sb.WriteString("     " + line + "\n")
@@ -661,7 +661,7 @@ func formatTemplate(raw string, contentWidth int) string {
 		if len(lc.Milestones) > 0 {
 			sb.WriteString("\n  Milestones:\n")
 			for i, ms := range lc.Milestones {
-				sb.WriteString(fmt.Sprintf("\n  %d. %s\n", i+1, ms.Title))
+				fmt.Fprintf(&sb, "\n  %d. %s\n", i+1, ms.Title)
 				if ms.Description != "" {
 					for _, line := range wrapText(ms.Description, w5) {
 						sb.WriteString("     " + line + "\n")
@@ -674,9 +674,9 @@ func formatTemplate(raw string, contentWidth int) string {
 		if len(lc.Metrics) > 0 {
 			sb.WriteString("\n  Metrics:\n")
 			for _, mt := range lc.Metrics {
-				sb.WriteString(fmt.Sprintf("\n  • %s", mt.Name))
+				fmt.Fprintf(&sb, "\n  • %s", mt.Name)
 				if mt.HealthyBenchmark != "" {
-					sb.WriteString(fmt.Sprintf("  [%s]", mt.HealthyBenchmark))
+					fmt.Fprintf(&sb, "  [%s]", mt.HealthyBenchmark)
 				}
 				sb.WriteString("\n")
 				if mt.HowToMeasure != "" {

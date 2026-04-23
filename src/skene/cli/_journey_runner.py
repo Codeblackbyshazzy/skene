@@ -33,7 +33,6 @@ from skene.cli.app import ResolvedConfig, resolve_cli_config
 from skene.llm import create_llm_client
 from skene.output import console, error
 
-
 # ---------------------------------------------------------------------------
 # Path resolution
 # ---------------------------------------------------------------------------

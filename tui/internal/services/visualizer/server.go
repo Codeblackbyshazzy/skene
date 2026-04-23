@@ -78,7 +78,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write(data)
+	_, _ = w.Write(data)
 }
 
 func (s *Server) handleData(w http.ResponseWriter, r *http.Request) {
@@ -88,14 +88,14 @@ func (s *Server) handleData(w http.ResponseWriter, r *http.Request) {
 	raw, err := os.ReadFile(s.filePath)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "file not found"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "file not found"})
 		return
 	}
 
 	var yamlData interface{}
 	if err := yaml.Unmarshal(raw, &yamlData); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to parse YAML"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to parse YAML"})
 		return
 	}
 
@@ -103,7 +103,7 @@ func (s *Server) handleData(w http.ResponseWriter, r *http.Request) {
 		"title": s.title,
 		"data":  convertYAMLToJSON(yamlData),
 	}
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 func convertYAMLToJSON(v interface{}) interface{} {
