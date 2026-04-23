@@ -186,6 +186,24 @@ func (e *Engine) GenerateBuild() *AnalysisResult {
 	return result
 }
 
+// Push spawns uvx skene push to deploy engine.yaml + trigger migration
+// to the configured Skene Cloud workspace. Upstream URL and API token
+// are picked up via SKENE_UPSTREAM / SKENE_UPSTREAM_API_KEY env vars set
+// in buildEnvVars.
+func (e *Engine) Push() *AnalysisResult {
+	result := &AnalysisResult{}
+
+	args := []string{constants.GrowthPackageSpec(), "push", "."}
+	args = append(args, e.buildCommonFlags()...)
+
+	if err := e.runUVX(context.Background(), args); err != nil {
+		result.Error = fmt.Errorf("push failed: %w", err)
+		return result
+	}
+
+	return result
+}
+
 // ValidateManifest spawns uvx skene validate
 func (e *Engine) ValidateManifest() *AnalysisResult {
 	result := &AnalysisResult{}
@@ -458,7 +476,17 @@ func (e *Engine) resolveOutputDir() string {
 		}
 		return filepath.Join(e.config.ProjectDir, e.config.OutputDir)
 	}
-	return filepath.Join(e.config.ProjectDir, constants.OutputDirName)
+	// Prefer the canonical `skene/` bundle; fall back to legacy `skene-context/`
+	// when only that exists so existing projects keep working.
+	primary := filepath.Join(e.config.ProjectDir, constants.OutputDirName)
+	if info, err := os.Stat(primary); err == nil && info.IsDir() {
+		return primary
+	}
+	legacy := filepath.Join(e.config.ProjectDir, constants.LegacyOutputDirName)
+	if info, err := os.Stat(legacy); err == nil && info.IsDir() {
+		return legacy
+	}
+	return primary
 }
 
 func (e *Engine) sendUpdate(phase AnalysisPhase, progress float64, message string) {

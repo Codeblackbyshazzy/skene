@@ -171,6 +171,12 @@ type App struct {
 	authCountdown  int
 	callbackServer *auth.CallbackServer
 
+	// Push flow — when the user triggers "Deploy to Skene Cloud" without
+	// a stored upstream token, we route through the Skene magic-link auth
+	// flow first and then automatically run the push.
+	pendingPushAfterAuth bool
+	pushReturnState      AppState
+
 	// Error state
 	currentError *views.ErrorInfo
 
@@ -454,7 +460,18 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}))
 
 	case authSuccessTransitionMsg:
-		a.transitionToProjectDir()
+		if a.pendingPushAfterAuth {
+			a.pendingPushAfterAuth = false
+			origin := a.pushReturnState
+			cmds = append(cmds, a.runEngineCommand(constants.NextStepPushTitle, "push"))
+			// Override analyzingOrigin if we came from project-dir so
+			// back-navigation doesn't try to land on a nil resultsView.
+			if origin == StateProjectDir {
+				a.analyzingOrigin = StateProjectDir
+			}
+		} else {
+			a.transitionToProjectDir()
+		}
 
 	case LocalModelDetectMsg:
 		if a.localModelView != nil {
@@ -633,6 +650,21 @@ func (a *App) handleAuthKeys(key string) tea.Cmd {
 		if a.callbackServer != nil {
 			a.callbackServer.Shutdown()
 			a.callbackServer = nil
+		}
+		if a.pendingPushAfterAuth {
+			a.pendingPushAfterAuth = false
+			returnState := a.pushReturnState
+			if returnState == StateResults && a.resultsView == nil {
+				returnState = StateProjectDir
+			}
+			if returnState == StateProjectDir && a.projectDirView == nil {
+				returnState = StateWelcome
+			}
+			if returnState != StateResults && returnState != StateProjectDir {
+				returnState = StateWelcome
+			}
+			a.state = returnState
+			return nil
 		}
 		a.state = StateProviderSelect
 	}
@@ -841,6 +873,8 @@ func (a *App) handleProjectDirNextStepsKeys(key string) tea.Cmd {
 			return a.runEngineCommand("Building Implementation Prompt", "build")
 		case "validate":
 			return a.runEngineCommand("Validating Manifest", "validate")
+		case "push":
+			return a.startPushFlow(StateProjectDir)
 		case "view-files":
 			a.transitionToResultsFromExisting()
 		case "open":
@@ -938,6 +972,15 @@ func (a *App) handleAnalyzingKeys(key string) tea.Cmd {
 }
 
 func (a *App) handleResultsKeys(key string) tea.Cmd {
+	if a.resultsView == nil {
+		// Nothing to render — bounce back to a safe state.
+		if a.projectDirView != nil {
+			a.returnToProjectDirWithExisting()
+		} else {
+			a.state = StateWelcome
+		}
+		return nil
+	}
 	if a.resultsView.IsShowingNextSteps() {
 		return a.handleNextStepsModalKeys(key)
 	}
@@ -995,6 +1038,8 @@ func (a *App) handleNextStepsModalKeys(key string) tea.Cmd {
 			return a.runEngineCommand("Building Implementation Prompt", "build")
 		case "validate":
 			return a.runEngineCommand("Validating Manifest", "validate")
+		case "push":
+			return a.startPushFlow(StateResults)
 		case "view-files":
 			// Already on the dashboard — just close the modal.
 		case "open":
@@ -1151,42 +1196,7 @@ func (a *App) selectProvider() tea.Cmd {
 
 	// Branch based on provider type
 	if provider.ID == "skene" {
-		callbackServer, err := auth.NewCallbackServer()
-		if err != nil {
-			a.showError(&views.ErrorInfo{
-				Code:       "AUTH_SERVER_FAILED",
-				Title:      "Authentication Setup Failed",
-				Message:    err.Error(),
-				Suggestion: "Try again or use a different provider.",
-				Severity:   views.SeverityError,
-				Retryable:  true,
-			})
-			return nil
-		}
-
-		if err := callbackServer.Start(); err != nil {
-			a.showError(&views.ErrorInfo{
-				Code:       "AUTH_SERVER_FAILED",
-				Title:      "Authentication Setup Failed",
-				Message:    err.Error(),
-				Suggestion: "Try again or use a different provider.",
-				Severity:   views.SeverityError,
-				Retryable:  true,
-			})
-			return nil
-		}
-
-		a.callbackServer = callbackServer
-
-		authBaseURL := resolveSkeneAuthURL()
-		authURL := fmt.Sprintf("%s?callback=%s", authBaseURL, url.QueryEscape(callbackServer.GetCallbackURL()))
-
-		a.authView = views.NewAuthView(provider)
-		a.authView.SetAuthURL(authURL)
-		a.authView.SetSize(a.width, a.height)
-		a.authCountdown = 3
-		a.state = StateAuth
-		return tea.Batch(countdown(3), a.waitForAuthCallback())
+		return a.startSkeneAuth(provider)
 	}
 
 	if provider.IsLocal {
@@ -1202,6 +1212,78 @@ func (a *App) selectProvider() tea.Cmd {
 	a.modelView.SetSize(a.width, a.height)
 	a.state = StateModelSelect
 	return nil
+}
+
+// startSkeneAuth spins up the magic-link callback server and transitions
+// the TUI into StateAuth. Extracted from selectProvider so flows other
+// than provider selection (e.g. the push-with-no-token flow) can reuse it.
+func (a *App) startSkeneAuth(provider *config.Provider) tea.Cmd {
+	callbackServer, err := auth.NewCallbackServer()
+	if err != nil {
+		a.showError(&views.ErrorInfo{
+			Code:       "AUTH_SERVER_FAILED",
+			Title:      "Authentication Setup Failed",
+			Message:    err.Error(),
+			Suggestion: "Try again or use a different provider.",
+			Severity:   views.SeverityError,
+			Retryable:  true,
+		})
+		return nil
+	}
+
+	if err := callbackServer.Start(); err != nil {
+		a.showError(&views.ErrorInfo{
+			Code:       "AUTH_SERVER_FAILED",
+			Title:      "Authentication Setup Failed",
+			Message:    err.Error(),
+			Suggestion: "Try again or use a different provider.",
+			Severity:   views.SeverityError,
+			Retryable:  true,
+		})
+		return nil
+	}
+
+	a.callbackServer = callbackServer
+
+	authBaseURL := resolveSkeneAuthURL()
+	authURL := fmt.Sprintf("%s?callback=%s", authBaseURL, url.QueryEscape(callbackServer.GetCallbackURL()))
+
+	a.authView = views.NewAuthView(provider)
+	a.authView.SetAuthURL(authURL)
+	a.authView.SetSize(a.width, a.height)
+	a.authCountdown = 3
+	a.state = StateAuth
+	return tea.Batch(countdown(3), a.waitForAuthCallback())
+}
+
+// startPushFlow kicks off a "Deploy to Skene Cloud" action from the
+// next-steps modal. If the user already has an upstream token stored
+// in their config we run `uvx skene push` immediately; otherwise we
+// route through the Skene magic-link auth flow and auto-run the push
+// once authentication succeeds.
+func (a *App) startPushFlow(origin AppState) tea.Cmd {
+	if a.configMgr.Config.UpstreamAPIKey == "" || a.configMgr.Config.Upstream == "" {
+		a.pendingPushAfterAuth = true
+		a.pushReturnState = origin
+
+		a.selectedProvider = config.GetProviderByID("skene")
+		if a.selectedProvider != nil {
+			a.configMgr.SetProvider(a.selectedProvider.ID)
+		}
+
+		return a.startSkeneAuth(a.selectedProvider)
+	}
+
+	cmd := a.runEngineCommand(constants.NextStepPushTitle, "push")
+	// runEngineCommand hardcodes analyzingOrigin = StateNextSteps, which
+	// makes navigateBackFromAnalyzing land on StateResults. That's fine
+	// when Deploy was triggered from the results dashboard, but if we
+	// came from the project-dir modal there is no resultsView yet, so
+	// override the origin to avoid landing on a nil view.
+	if origin == StateProjectDir {
+		a.analyzingOrigin = StateProjectDir
+	}
+	return cmd
 }
 
 func (a *App) selectModel() {
@@ -1293,6 +1375,10 @@ func (a *App) navigateBackFromAnalyzing() {
 
 	switch a.analyzingOrigin {
 	case StateNextSteps:
+		if a.resultsView == nil {
+			a.returnToProjectDirWithExisting()
+			return
+		}
 		a.refreshResultsView()
 		a.state = StateResults
 	case StateProjectDir:
@@ -1481,6 +1567,11 @@ func (a *App) runEngineCommand(title string, command string) tea.Cmd {
 				p.Send(NextStepOutputMsg{Line: "Running: uvx skene validate ..."})
 			}
 			result = engine.ValidateManifest()
+		case "push":
+			if p != nil {
+				p.Send(NextStepOutputMsg{Line: constants.NextStepPushRunning})
+			}
+			result = engine.Push()
 		default:
 			return NextStepDoneMsg{Error: fmt.Errorf("unknown command: %s", command)}
 		}

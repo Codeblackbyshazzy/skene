@@ -53,7 +53,10 @@ const (
 
 // Next steps view
 const (
-	NextStepsSuccess = "Analysis complete! What would you like to do next?"
+	NextStepsSuccess       = "Analysis complete! What would you like to do next?"
+	NextStepPushTitle      = "Deploying to Skene Cloud"
+	NextStepPushRunning    = "Running: uvx skene push ..."
+	NextStepPushNeedsLogin = "You need to sign in to Skene before deploying. Opening browser..."
 )
 
 // Next step action definitions
@@ -94,6 +97,13 @@ var NextStepActions = []NextStepDef{
 		RequiresFile: GrowthManifestFile,
 	},
 	{
+		ID:           "push",
+		Name:         "Deploy to Skene Cloud",
+		Description:  "Push engine.yaml and trigger migration to your Skene workspace",
+		Command:      "uvx skene push .",
+		RequiresFile: EngineFile,
+	},
+	{
 		ID:           "validate",
 		Name:         "Validate Manifest",
 		Description:  "Validate the growth manifest against the schema",
@@ -109,7 +119,7 @@ var NextStepActions = []NextStepDef{
 	{
 		ID:          "open",
 		Name:        "Open File Directory",
-		Description: "Open the skene-context folder in your file manager",
+		Description: "Open the skene output folder in your file manager",
 		RequiresDir: true,
 	},
 	{
