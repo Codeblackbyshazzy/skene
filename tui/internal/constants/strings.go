@@ -53,7 +53,10 @@ const (
 
 // Next steps view
 const (
-	NextStepsSuccess = "Analysis complete! What would you like to do next?"
+	NextStepsSuccess       = "Analysis complete! What would you like to do next?"
+	NextStepPushTitle      = "Deploying to Skene Cloud"
+	NextStepPushRunning    = "Running: uvx skene push ..."
+	NextStepPushNeedsLogin = "You need to sign in to Skene before deploying. Opening browser..."
 )
 
 // Next step action definitions
@@ -92,6 +95,13 @@ var NextStepActions = []NextStepDef{
 		Description:  "Generate a ready-to-use prompt for Cursor, Claude, or other AI tools",
 		Command:      "uvx skene build",
 		RequiresFile: GrowthManifestFile,
+	},
+	{
+		ID:           "push",
+		Name:         "Deploy to Skene Cloud",
+		Description:  "Push engine.yaml and trigger migration to your Skene workspace",
+		Command:      "uvx skene push .",
+		RequiresFile: EngineFile,
 	},
 	{
 		ID:           "validate",
