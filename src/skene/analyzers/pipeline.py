@@ -234,8 +234,11 @@ async def run_pipeline(
 ) -> PipelineResult:
     """Run the requested subset of the journey pipeline.
 
-    The pipeline stops early when a required upstream artifact is missing or
-    unusable (e.g. plan stage needs a manifest with growth opportunities).
+    The pipeline stops early only when a required upstream artifact is missing
+    (e.g. plan stage needs a manifest with growth opportunities). When the
+    schema stage finds no tables, downstream stages run in their schemaless
+    fallback paths rather than being skipped.
+
     Every outcome — success, skip, or failure — is recorded on the returned
     ``PipelineResult``; the function never raises for a stage-level failure.
 
@@ -262,23 +265,6 @@ async def run_pipeline(
             result=result,
         )
         if not ok:
-            return result
-        if result.schema is not None and not result.schema.tables:
-            result.outcomes.append(
-                StageOutcome(
-                    stage=Stage.GROWTH,
-                    status=StageStatus.SKIPPED,
-                    summary="schema has no tables",
-                )
-            )
-            if Stage.PLAN in stages:
-                result.outcomes.append(
-                    StageOutcome(
-                        stage=Stage.PLAN,
-                        status=StageStatus.SKIPPED,
-                        summary="no schema tables to plan against",
-                    )
-                )
             return result
 
     if Stage.GROWTH in stages:

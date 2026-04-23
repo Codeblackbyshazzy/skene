@@ -1,11 +1,14 @@
 """
-Schema-driven growth manifest analyzer.
+Growth manifest analyzer (schema-driven, with a codebase-only fallback).
 
 Reads the introspected schema produced by :mod:`skene.analyzers.schema_journey`
 and uses it as the authoritative driver for discovering *current* growth-relevant
-features in the codebase.
+features in the codebase. When the schema has no tables (e.g. the journey
+analyzer could not discover any), the analyzer falls back to a codebase-only
+inference path that derives features from documentation and source-level
+evidence alone.
 
-Pipeline:
+Pipeline (schema-driven):
 1. Load schema YAML (tables, columns, relationships, source_files).
 2. LLM hypothesises growth features grounded on schema anchors (no code yet).
 3. Targeted ripgrep in the codebase using terms derived from the schema.
@@ -15,6 +18,12 @@ Pipeline:
    ``industry``; a final LLM pass adds ``revenue_leakage`` and
    ``growth_opportunities``.
 6. Write the resulting manifest JSON.
+
+Pipeline (schemaless fallback, when the schema has no tables):
+1. Prime README/package manifests + grep the codebase for a curated set of
+   growth-related keywords (invite, billing, onboarding, …).
+2. LLM infers ``current_growth_features`` from those snippets only.
+3. Same enrichment pass as the schema-driven flow.
 """
 
 from __future__ import annotations
@@ -57,6 +66,29 @@ PRIME_MAX_CHARS_PER_FILE = 8_000
 MAX_HYPOTHESES = 12
 MAX_TERMS_PER_HYPOTHESIS = 5
 MAX_SNIPPET_CHARS = 6_000
+
+# Curated keywords used by the schemaless fallback to surface growth-related
+# code regions. Kept short so total grep work stays bounded.
+SCHEMALESS_GROWTH_KEYWORDS: list[str] = [
+    "invite",
+    "invitation",
+    "referral",
+    "subscription",
+    "billing",
+    "stripe",
+    "checkout",
+    "webhook",
+    "oauth",
+    "session",
+    "onboarding",
+    "notification",
+    "analytics",
+    "trial",
+    "upgrade",
+]
+SCHEMALESS_MAX_MATCHES_PER_TERM = 6
+SCHEMALESS_MAX_FEATURES = 8
+SCHEMALESS_MAX_SNIPPET_CHARS = 18_000
 
 
 # ---------------------------------------------------------------------------
@@ -143,6 +175,40 @@ Rules:
 - "confidence_score" is a float in [0.0, 1.0] reflecting how strongly the snippets confirm the hypothesis.
 - Do NOT include file_path, entry_point, or growth_pillars. They are intentionally omitted.
 - Do NOT invent features the snippets do not support.
+- Return ONLY the JSON object. No prose, no code fences.
+"""
+
+
+SCHEMALESS_FEATURES_PROMPT = """\
+You are inferring the *current* growth-related features of a product purely
+from its codebase (no database schema is available).
+
+Project files (READMEs, package manifests, growth-keyword code snippets):
+```
+{snippets}
+```
+
+Identify the growth-relevant capabilities the product already ships
+(invitations, sharing, billing/monetisation, onboarding, notifications,
+analytics/events, auth, multi-tenant orgs, etc.). Be conservative — only emit
+a feature when the snippets clearly support it.
+
+Return ONLY a JSON object of this exact shape:
+{{
+  "features": [
+    {{
+      "feature_name": "Team Invitations",
+      "detected_intent": "Viral growth via invite links",
+      "confidence_score": 0.7,
+      "growth_potential": ["Add invite rewards", "Track invite acceptance rate"]
+    }}
+  ]
+}}
+
+Rules:
+- "confidence_score" is a float in [0.0, 1.0] reflecting evidence strength.
+- Do NOT include file_path, entry_point, or growth_pillars.
+- Emit at most {max_features} features — the most clearly supported ones.
 - Return ONLY the JSON object. No prose, no code fences.
 """
 
@@ -502,6 +568,86 @@ def _merge_feature(state: GrowthState, feature: dict[str, Any]) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Schemaless fallback: infer features from the codebase alone
+# ---------------------------------------------------------------------------
+
+
+async def _infer_features_from_codebase(
+    llm: LLMClient,
+    path: Path,
+    state: GrowthState,
+    excludes: list[str],
+) -> None:
+    """Populate ``state.features`` from docs + growth-keyword code snippets only.
+
+    Used when the journey analyzer could not discover any database tables.
+    """
+    doc_files = await asyncio.to_thread(
+        discover_files_by_globs, path, PRIME_GLOBS, excludes, PRIME_MAX_FILES
+    )
+    doc_parts = [read_file_snippet(f, path, PRIME_MAX_CHARS_PER_FILE) for f in doc_files]
+
+    seen: set[str] = set()
+    code_blocks: list[str] = []
+    for term in SCHEMALESS_GROWTH_KEYWORDS:
+        matches = await asyncio.to_thread(
+            grep_for_keyword,
+            term,
+            path,
+            excludes=excludes,
+            max_matches=SCHEMALESS_MAX_MATCHES_PER_TERM,
+            context_lines=2,
+        )
+        for m in matches:
+            if m not in seen:
+                seen.add(m)
+                code_blocks.append(m)
+
+    if not doc_parts and not code_blocks:
+        warning(
+            "Schemaless feature inference: no documentation or growth-related "
+            "code found — leaving current_growth_features empty"
+        )
+        return
+
+    snippets = "\n\n".join(p for p in doc_parts if p)
+    if code_blocks:
+        joined_code = join_blocks(code_blocks, max_chars=SCHEMALESS_MAX_SNIPPET_CHARS)
+        snippets = (snippets + "\n\n---\n\n" + joined_code).strip() if snippets else joined_code
+    if len(snippets) > SCHEMALESS_MAX_SNIPPET_CHARS:
+        snippets = snippets[:SCHEMALESS_MAX_SNIPPET_CHARS] + "\n\n...[truncated]"
+
+    status(
+        f"Schemaless feature inference: {len(doc_files)} doc file(s), "
+        f"{len(code_blocks)} growth-keyword snippet(s)"
+    )
+
+    prompt = SCHEMALESS_FEATURES_PROMPT.format(
+        snippets=snippets,
+        max_features=SCHEMALESS_MAX_FEATURES,
+    )
+
+    try:
+        response = await llm.generate_content(prompt)
+    except Exception as e:
+        warning(f"Schemaless feature LLM call failed: {e}")
+        return
+
+    parsed = parse_json(response)
+    if parsed is None:
+        warning("Could not parse schemaless feature response")
+        return
+
+    fallback = {"feature_name": "", "detected_intent": ""}
+    for feat in parsed.get("features") or []:
+        if not isinstance(feat, dict):
+            continue
+        normalised = _normalise_feature(feat, fallback=fallback)
+        if normalised is not None:
+            _merge_feature(state, normalised)
+
+
+# ---------------------------------------------------------------------------
 # Phase 4: prime docs + enrich manifest
 # ---------------------------------------------------------------------------
 
@@ -646,8 +792,15 @@ async def analyse_growth_from_schema(
         state.schema = load_schema(schema_path)
         status(f"Loaded schema: {len(state.schema.get('tables', []))} table(s)")
 
-        await _infer_hypotheses(llm, state)
-        await _ground_hypotheses(llm, path, state, excludes)
+        if state.schema.get("tables"):
+            await _infer_hypotheses(llm, state)
+            await _ground_hypotheses(llm, path, state, excludes)
+        else:
+            status(
+                "No schema tables — falling back to codebase-only feature inference"
+            )
+            await _infer_features_from_codebase(llm, path, state, excludes)
+
         await _enrich_manifest(llm, path, state, excludes)
 
         write_growth_manifest(output_path, state.to_manifest_dict())

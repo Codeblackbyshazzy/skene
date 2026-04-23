@@ -7,11 +7,17 @@ promote three concrete growth features — grounded in the manifest's
 ``growth_opportunities`` and the introspected schema — into the
 ``skene/engine.yaml`` engine document.
 
+When the schema has no tables (e.g. the journey analyzer could not discover
+any), a schemaless prompt is used instead: subjects use synthetic ``app.<key>``
+tables and features use a non-DB ``app.<key>.virtual`` source with no
+``action`` (since database triggers cannot be wired without real tables).
+
 Pipeline:
 1. Load growth manifest + schema.
 2. Pick the top three growth opportunities (rank by priority) as seeds.
 3. Ask the LLM to emit an engine delta (subjects + features) that implements
-   those opportunities against the real schema.
+   those opportunities — against the real schema, or schemalessly when no
+   schema tables are available.
 4. Merge the delta into any existing ``engine.yaml`` by key and persist.
 5. Write ``new-features.yaml`` next to ``engine.yaml`` with a JSON array of
    the features from this planning run only.
@@ -52,6 +58,20 @@ def _drop_skene_growth_entries(delta: EngineDocument) -> EngineDocument:
     subjects = [s for s in delta.subjects if not is_skene_growth_table(s.table)]
     features = [f for f in delta.features if not source_targets_skene_growth(f.source)]
     return EngineDocument(version=delta.version, subjects=subjects, features=features)
+
+
+def _strip_actions(delta: EngineDocument) -> EngineDocument:
+    """Drop ``action`` from every feature (used in the schemaless plan flow).
+
+    Schemaless features have no real DB source and cannot be wired to database
+    triggers — keeping ``action`` would silently produce invalid runtime wiring.
+    """
+    cleaned_features = [f.model_copy(update={"action": None}) for f in delta.features]
+    return EngineDocument(
+        version=delta.version,
+        subjects=delta.subjects,
+        features=cleaned_features,
+    )
 
 
 def _filter_skene_growth_from_schema(schema: dict[str, Any]) -> dict[str, Any]:
@@ -141,6 +161,68 @@ Hard rules:
 - NEVER use ``skene_growth`` schema or any ``skene_growth*`` table in
   ``source`` or ``action`` config — those belong to Skene's own
   instrumentation, not the application being planned.
+- Keep ``version`` = 1. Return ONLY the JSON object.
+"""
+
+
+SCHEMALESS_PLAN_PROMPT = """\
+You are a growth engineering planner. Your job is to turn growth opportunities
+into concrete features in the product's ``skene/engine.yaml``.
+
+NOTE: No database schema was discovered for this product. Plan features purely
+from product/business context. Do NOT invent database tables or columns; the
+features cannot be wired to database triggers.
+
+Project: {project_name}
+Description: {description}
+
+Existing engine document (for context — do not duplicate features already here):
+{engine_context}
+
+Current growth features already shipped in the product:
+```json
+{current_features}
+```
+
+Selected growth opportunities to implement now (pick a concrete shape for each):
+```json
+{opportunities}
+```
+
+Return ONLY a JSON object matching this shape (no prose, no code fences):
+{{
+  "version": 1,
+  "subjects": [
+    {{"key": "user", "table": "app.user", "kind": "actor"}}
+  ],
+  "features": [
+    {{
+      "key": "snake_case_key",
+      "name": "Human Readable Name",
+      "source": "app.snake_case_key.virtual",
+      "how_it_works": "1-3 sentence explanation of runtime behaviour",
+      "match_intent": "short hint describing what triggers this feature",
+      "subject_state_analysis": {{
+        "lifecycle_subject": "<subject.key referenced above>",
+        "subject_id_path": "id",
+        "action_target_path": null,
+        "state": null,
+        "record_predicates": [],
+        "analysis_notes": "freeform notes; no schema is available"
+      }}
+    }}
+  ]
+}}
+
+Hard rules:
+- Emit EXACTLY {feature_count} features, one per selected opportunity, in the same order.
+- Subject ``table`` MUST start with ``app.`` (synthetic identifier; no real DB).
+- Feature ``source`` MUST be ``app.<feature_key>.virtual`` matching the feature's own ``key``.
+- Do NOT include an ``action`` field. Schemaless features cannot be wired to
+  database triggers and must remain client-side / informational.
+- Include every subject referenced by ``lifecycle_subject`` in ``subjects``.
+  Reuse keys already listed in the existing engine when applicable.
+- Feature keys must be stable ``snake_case`` identifiers unique to engine.yaml.
 - Keep ``version`` = 1. Return ONLY the JSON object.
 """
 
@@ -288,19 +370,31 @@ async def plan_engine_from_manifest(
         else "(engine.yaml is empty — seed it.)"
     )
 
+    schemaless = not (state.schema.get("tables") or [])
     status(
         f"Planning {len(state.selected_opportunities)} engine feature(s) from growth opportunities"
+        + (" (schemaless mode)" if schemaless else "")
     )
 
-    prompt = PLAN_PROMPT.format(
-        project_name=state.manifest.get("project_name") or "unknown",
-        description=state.manifest.get("description") or "(no description)",
-        schema=_schema_for_prompt(state.schema),
-        engine_context=engine_context,
-        current_features=json.dumps(current_features, indent=2),
-        opportunities=json.dumps(state.selected_opportunities, indent=2),
-        feature_count=feature_count,
-    )
+    if schemaless:
+        prompt = SCHEMALESS_PLAN_PROMPT.format(
+            project_name=state.manifest.get("project_name") or "unknown",
+            description=state.manifest.get("description") or "(no description)",
+            engine_context=engine_context,
+            current_features=json.dumps(current_features, indent=2),
+            opportunities=json.dumps(state.selected_opportunities, indent=2),
+            feature_count=feature_count,
+        )
+    else:
+        prompt = PLAN_PROMPT.format(
+            project_name=state.manifest.get("project_name") or "unknown",
+            description=state.manifest.get("description") or "(no description)",
+            schema=_schema_for_prompt(state.schema),
+            engine_context=engine_context,
+            current_features=json.dumps(current_features, indent=2),
+            opportunities=json.dumps(state.selected_opportunities, indent=2),
+            feature_count=feature_count,
+        )
 
     try:
         response = await llm.generate_content(prompt)
@@ -319,6 +413,8 @@ async def plan_engine_from_manifest(
         return state
 
     state.delta = _drop_skene_growth_entries(state.delta)
+    if schemaless:
+        state.delta = _strip_actions(state.delta)
 
     state.merged = merge_engine_documents(state.existing_engine, state.delta)
     write_engine_document(engine_path, state.merged, project_root=project_root)
