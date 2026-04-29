@@ -107,8 +107,11 @@ func (e *Engine) Run(ctx context.Context) *AnalysisResult {
 
 	e.sendUpdate(PhaseScanCodebase, 0.0, "Starting analysis via uvx skene...")
 
-	args := []string{constants.GrowthPackageSpec(), "analyze", "."}
-	args = append(args, e.buildCommonFlags()...)
+	outputDir := e.resolveOutputDir()
+	args := []string{
+		constants.GrowthPackageSpec(), "analyze", ".",
+		"--output", filepath.Join(outputDir, constants.GrowthManifestFile),
+	}
 
 	if err := e.runUVX(ctx, args); err != nil {
 		result.Error = fmt.Errorf("analysis failed: %w", err)
@@ -117,7 +120,6 @@ func (e *Engine) Run(ctx context.Context) *AnalysisResult {
 
 	e.sendUpdate(PhaseGenerateDocs, 1.0, "Analysis complete")
 
-	outputDir := e.resolveOutputDir()
 	result.GrowthPlan = loadFileContent(filepath.Join(outputDir, constants.GrowthPlanFile))
 	result.Manifest = loadFileContent(filepath.Join(outputDir, constants.GrowthManifestFile))
 	result.GrowthTemplate = loadFileContent(filepath.Join(outputDir, constants.GrowthTemplateFile))
@@ -156,15 +158,18 @@ func (e *Engine) RunJourney(ctx context.Context) *AnalysisResult {
 func (e *Engine) GeneratePlan() *AnalysisResult {
 	result := &AnalysisResult{}
 
-	args := []string{constants.GrowthPackageSpec(), "plan"}
-	args = append(args, e.buildCommonFlags()...)
+	outputDir := e.resolveOutputDir()
+	args := []string{
+		constants.GrowthPackageSpec(), "plan",
+		"--context", outputDir,
+		"--output", filepath.Join(outputDir, constants.GrowthPlanFile),
+	}
 
 	if err := e.runUVX(context.Background(), args); err != nil {
 		result.Error = fmt.Errorf("plan generation failed: %w", err)
 		return result
 	}
 
-	outputDir := e.resolveOutputDir()
 	result.GrowthPlan = loadFileContent(filepath.Join(outputDir, constants.GrowthPlanFile))
 	return result
 }
@@ -173,28 +178,30 @@ func (e *Engine) GeneratePlan() *AnalysisResult {
 func (e *Engine) GenerateBuild() *AnalysisResult {
 	result := &AnalysisResult{}
 
-	args := []string{constants.GrowthPackageSpec(), "build"}
-	args = append(args, e.buildCommonFlags()...)
+	outputDir := e.resolveOutputDir()
+	args := []string{
+		constants.GrowthPackageSpec(), "build",
+		"--context", outputDir,
+	}
 
 	if err := e.runUVX(context.Background(), args); err != nil {
 		result.Error = fmt.Errorf("build generation failed: %w", err)
 		return result
 	}
 
-	outputDir := e.resolveOutputDir()
 	result.GrowthPlan = loadFileContent(filepath.Join(outputDir, constants.ImplementationPromptFile))
 	return result
 }
 
 // Push spawns uvx skene push to deploy engine.yaml + trigger migration
-// to the configured Skene Cloud workspace. Upstream URL and API token
-// are picked up via SKENE_UPSTREAM / SKENE_UPSTREAM_API_KEY env vars set
-// in buildEnvVars.
+// to the configured Skene Cloud workspace. Upstream URL, API token, and
+// the configured output directory are propagated via the SKENE_UPSTREAM,
+// SKENE_UPSTREAM_API_KEY, and SKENE_OUTPUT_DIR env vars set in
+// buildEnvVars — skene push does not accept an --output / --context flag.
 func (e *Engine) Push() *AnalysisResult {
 	result := &AnalysisResult{}
 
 	args := []string{constants.GrowthPackageSpec(), "push", "."}
-	args = append(args, e.buildCommonFlags()...)
 
 	if err := e.runUVX(context.Background(), args); err != nil {
 		result.Error = fmt.Errorf("push failed: %w", err)
@@ -439,13 +446,6 @@ func isSelectLine(line string) bool {
 		strings.Contains(lower, "enter your choice")
 }
 
-// buildCommonFlags returns CLI flags for the skene command.
-// Provider, model, and API key are read from the config file by the CLI,
-// so they are not passed as flags here.
-func (e *Engine) buildCommonFlags() []string {
-	return nil
-}
-
 func (e *Engine) buildEnvVars() []string {
 	var envs []string
 	if e.config.APIKey != "" {
@@ -465,6 +465,9 @@ func (e *Engine) buildEnvVars() []string {
 	}
 	if e.config.UpstreamAPIKey != "" {
 		envs = append(envs, "SKENE_UPSTREAM_API_KEY="+e.config.UpstreamAPIKey)
+	}
+	if outDir := e.resolveOutputDir(); outDir != "" {
+		envs = append(envs, "SKENE_OUTPUT_DIR="+outDir)
 	}
 	return envs
 }
