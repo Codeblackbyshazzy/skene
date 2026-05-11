@@ -11,16 +11,17 @@ import (
 
 // Config represents the skene configuration
 type Config struct {
-	Provider       string
-	Model          string
-	APIKey         string
-	OutputDir      string
-	Verbose        bool
-	ProjectDir     string
-	BaseURL        string
-	UseGrowth      bool
-	Upstream       string
-	UpstreamAPIKey string
+	Provider         string
+	Model            string
+	APIKey           string
+	OutputDir        string
+	Verbose          bool
+	ProjectDir       string
+	BaseURL          string
+	UseGrowth        bool
+	Upstream         string
+	UpstreamAPIKey   string
+	TelemetryEnabled bool
 }
 
 // Manager handles configuration file operations
@@ -38,9 +39,10 @@ func NewManager(projectDir string) *Manager {
 		ProjectConfigPath: filepath.Join(projectDir, constants.ProjectConfigFile),
 		UserConfigPath:    filepath.Join(homeDir, constants.UserConfigDir, constants.UserConfigFile),
 		Config: &Config{
-			OutputDir: constants.DefaultOutputDir,
-			Verbose:   true,
-			UseGrowth: true,
+			OutputDir:        constants.DefaultOutputDir,
+			Verbose:          true,
+			UseGrowth:        true,
+			TelemetryEnabled: true,
 		},
 	}
 }
@@ -84,10 +86,20 @@ func (m *Manager) CheckConfigs() []ConfigStatus {
 // LoadConfig loads configuration from files.
 // User config is loaded first, then project config is merged on top
 // (project values take precedence), matching the Python CLI behaviour.
+// Telemetry preference is read from the user config only — it is a
+// per-machine setting, not a per-project one.
 func (m *Manager) LoadConfig() error {
 	if fileExists(m.UserConfigPath) {
 		if cfg, err := m.loadConfigFile(m.UserConfigPath); err == nil {
 			mergeConfig(m.Config, cfg)
+			// Telemetry is user-level only; read the raw value to
+			// distinguish "absent" (default on) from "false" (opt-out).
+			if data, readErr := os.ReadFile(m.UserConfigPath); readErr == nil {
+				kv := parseTOML(string(data))
+				if val, ok := kv["telemetry"]; ok {
+					m.Config.TelemetryEnabled = strings.EqualFold(val, "true")
+				}
+			}
 		}
 	}
 
@@ -157,6 +169,8 @@ func (m *Manager) loadConfigFile(path string) (*Config, error) {
 			config.Upstream = value
 		case "upstream_api_key":
 			config.UpstreamAPIKey = value
+		case "telemetry":
+			config.TelemetryEnabled = strings.EqualFold(value, "true")
 		}
 	}
 	return config, nil
@@ -204,6 +218,11 @@ func (m *Manager) writeConfigToPath(path string) error {
 	if m.Config.UpstreamAPIKey != "" {
 		existing["upstream_api_key"] = m.Config.UpstreamAPIKey
 	}
+	if !m.Config.TelemetryEnabled {
+		existing["telemetry"] = "false"
+	} else {
+		existing["telemetry"] = "true"
+	}
 
 	content := writeTOML(existing)
 
@@ -246,6 +265,13 @@ func (m *Manager) SetUpstream(upstream string) {
 // SetUpstreamAPIKey sets the upstream API key
 func (m *Manager) SetUpstreamAPIKey(key string) {
 	m.Config.UpstreamAPIKey = key
+}
+
+// SetTelemetryEnabled sets the telemetry preference and persists it
+// to the user config file immediately.
+func (m *Manager) SetTelemetryEnabled(on bool) {
+	m.Config.TelemetryEnabled = on
+	_ = m.SaveUserConfig()
 }
 
 // GetMaskedAPIKey returns masked API key for display
@@ -309,7 +335,7 @@ func writeTOML(kv map[string]string) string {
 	b.WriteString("# skene configuration\n")
 	b.WriteString("# See: https://github.com/skene-technologies/skene\n\n")
 
-	ordered := []string{"api_key", "provider", "model", "base_url", "output_dir", "upstream", "upstream_api_key"}
+	ordered := []string{"api_key", "provider", "model", "base_url", "output_dir", "upstream", "upstream_api_key", "telemetry"}
 	written := make(map[string]bool)
 	for _, key := range ordered {
 		if val, ok := kv[key]; ok && val != "" {

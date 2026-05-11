@@ -3,6 +3,7 @@ package constants
 import (
 	"fmt"
 	"os"
+	"time"
 )
 
 // Version and repository information
@@ -92,6 +93,42 @@ var DashboardFiles = []DashboardFile{
 	{ID: "schema", DisplayName: "Schema", Filename: SchemaFile, Description: FileDescSchema, InContext: false},
 	{ID: "plan", DisplayName: "Growth Plan", Filename: GrowthPlanFile, Description: FileDescPlan, InContext: true},
 }
+
+// Telemetry
+const (
+	TelemetryPostHogKey      = "phc_nDXyAuGt2viS6MM3Cnue7iLUEN6e6F9Bkdss3kVdVCWE" // TODO: replace with real PostHog project API key
+	TelemetryPostHogEndpoint = "https://us.i.posthog.com"
+	TelemetryQueueSize       = 64
+	TelemetryHTTPTimeout     = 5 * time.Second
+)
+
+// Telemetry event names
+const (
+	EventTUIOpened          = "tui_opened"
+	EventProviderSelected   = "provider_selected"
+	EventModelSelected      = "model_selected"
+	EventProjectDirSelected = "project_dir_selected"
+	EventAnalysisStarted    = "analysis_started"
+	EventAnalysisCompleted  = "analysis_completed"
+	EventAnalysisFailed     = "analysis_failed"
+	EventNextStepTriggered  = "next_step_triggered"
+	EventTelemetryToggled   = "telemetry_toggled"
+
+	EventViewEntered            = "view_entered"
+	EventConfigReused           = "config_reused"
+	EventConfigReconfigured     = "config_reconfigured"
+	EventAuthSucceeded          = "auth_succeeded"
+	EventAuthFallbackUsed       = "auth_fallback_used"
+	EventExistingAnalysisAction = "existing_analysis_action"
+	EventVisualizerOpened       = "visualizer_opened"
+	EventTUIExited              = "tui_exited"
+	EventAnalysisCancelled      = "analysis_cancelled"
+	EventAnalysisRetried        = "analysis_retried"
+
+	EventDeploymentStarted   = "deployment_started"
+	EventDeploymentCompleted = "deployment_completed"
+	EventDeploymentFailed    = "deployment_failed"
+)
 
 // Skene ecosystem package metadata
 type PackageMeta struct {
