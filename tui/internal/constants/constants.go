@@ -94,13 +94,38 @@ var DashboardFiles = []DashboardFile{
 	{ID: "plan", DisplayName: "Growth Plan", Filename: GrowthPlanFile, Description: FileDescPlan, InContext: true},
 }
 
-// Telemetry
+// Telemetry — events are sent to a Supabase Edge Function ("telemetry proxy"),
+// not directly to PostHog or any other analytics backend. The proxy stores
+// events in Postgres and can optionally forward them. See telemetry-proxy/
+// at the repo root for the project definition and deploy steps.
+//
+// The anon key below is public by design (Supabase convention) and locked
+// down via Row Level Security on the events table. Both values can be
+// overridden at runtime via SKENE_TELEMETRY_URL and SKENE_TELEMETRY_KEY.
 const (
-	TelemetryPostHogKey      = "phc_nDXyAuGt2viS6MM3Cnue7iLUEN6e6F9Bkdss3kVdVCWE" // TODO: replace with real PostHog project API key
-	TelemetryPostHogEndpoint = "https://us.i.posthog.com"
-	TelemetryQueueSize       = 64
-	TelemetryHTTPTimeout     = 5 * time.Second
+	TelemetryProxyURL     = "https://pchtyfolbzguqyxyoyqh.supabase.co/functions/v1/track-event" // TODO: replace with deployed Edge Function URL
+	TelemetryProxyAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjaHR5Zm9sYnpndXF5eHlveXFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MDEwMjQsImV4cCI6MjA5NDA3NzAyNH0.x3ooostMOfHdQFOPzX2O5LDbEwnlqILfUROyl00iqtA"                                    // TODO: replace with Supabase anon (public) key
+	TelemetryQueueSize    = 64
+	TelemetryHTTPTimeout  = 5 * time.Second
 )
+
+// GetTelemetryProxyURL returns the proxy endpoint, honouring the
+// SKENE_TELEMETRY_URL env override for dev/staging environments.
+func GetTelemetryProxyURL() string {
+	if v := os.Getenv("SKENE_TELEMETRY_URL"); v != "" {
+		return v
+	}
+	return TelemetryProxyURL
+}
+
+// GetTelemetryProxyAnonKey returns the proxy anon key, honouring the
+// SKENE_TELEMETRY_KEY env override for dev/staging environments.
+func GetTelemetryProxyAnonKey() string {
+	if v := os.Getenv("SKENE_TELEMETRY_KEY"); v != "" {
+		return v
+	}
+	return TelemetryProxyAnonKey
+}
 
 // Telemetry event names
 const (

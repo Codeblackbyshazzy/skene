@@ -18,12 +18,12 @@ import (
 // TYPES
 // ═══════════════════════════════════════════════════════════════════
 
-// Client sends anonymous telemetry events to PostHog.
-// All sends are non-blocking; events are queued and flushed
-// by a background goroutine.
+// Client sends anonymous telemetry events to the Skene telemetry proxy
+// (a Supabase Edge Function — see ../../../../telemetry-proxy/). All sends
+// are non-blocking; events are queued and flushed by a background goroutine.
 type Client struct {
-	apiKey       string
-	endpoint     string
+	proxyURL     string
+	anonKey      string
 	distinctID   string
 	sessionID    string
 	queue        chan event
@@ -41,7 +41,6 @@ type event struct {
 }
 
 type capturePayload struct {
-	APIKey     string            `json:"api_key"`
 	Event      string            `json:"event"`
 	DistinctID string            `json:"distinct_id"`
 	Properties map[string]string `json:"properties"`
@@ -58,8 +57,8 @@ type capturePayload struct {
 func NewClient(enabled bool) *Client {
 	now := time.Now()
 	c := &Client{
-		apiKey:       constants.TelemetryPostHogKey,
-		endpoint:     constants.TelemetryPostHogEndpoint,
+		proxyURL:     constants.GetTelemetryProxyURL(),
+		anonKey:      constants.GetTelemetryProxyAnonKey(),
 		distinctID:   anonymousID(),
 		sessionID:    fmt.Sprintf("sess-%d", now.UnixNano()),
 		queue:        make(chan event, constants.TelemetryQueueSize),
@@ -150,8 +149,14 @@ func (c *Client) sender() {
 }
 
 func (c *Client) post(e event) {
+	// If the proxy URL or anon key haven't been configured (still the
+	// placeholder values), silently drop the event rather than spam a
+	// dead endpoint. This keeps local/dev builds clean.
+	if c.proxyURL == "" || c.anonKey == "" {
+		return
+	}
+
 	payload := capturePayload{
-		APIKey:     c.apiKey,
 		Event:      e.Event,
 		DistinctID: c.distinctID,
 		Properties: e.Properties,
@@ -163,11 +168,16 @@ func (c *Client) post(e event) {
 		return
 	}
 
-	req, err := http.NewRequest(http.MethodPost, c.endpoint+"/capture/", bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, c.proxyURL, bytes.NewReader(body))
 	if err != nil {
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
+	// Supabase Edge Functions with verify_jwt require both headers.
+	// The anon key is public; RLS on the events table gates direct
+	// access. See the telemetry-proxy/ directory for details.
+	req.Header.Set("Authorization", "Bearer "+c.anonKey)
+	req.Header.Set("apikey", c.anonKey)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
