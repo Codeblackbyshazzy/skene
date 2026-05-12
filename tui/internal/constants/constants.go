@@ -94,14 +94,7 @@ var DashboardFiles = []DashboardFile{
 	{ID: "plan", DisplayName: "Growth Plan", Filename: GrowthPlanFile, Description: FileDescPlan, InContext: true},
 }
 
-// Telemetry — events are sent to a Supabase Edge Function ("telemetry proxy"),
-// not directly to PostHog or any other analytics backend. The proxy stores
-// events in Postgres and can optionally forward them. See telemetry-proxy/
-// at the repo root for the project definition and deploy steps.
-//
-// The anon key below is public by design (Supabase convention) and locked
-// down via Row Level Security on the events table. Both values can be
-// overridden at runtime via SKENE_TELEMETRY_URL and SKENE_TELEMETRY_KEY.
+// Telemetry — events are sent to a Supabase Edge Function
 const (
 	TelemetryProxyURL     = "https://pchtyfolbzguqyxyoyqh.supabase.co/functions/v1/track-event" // TODO: replace with deployed Edge Function URL
 	TelemetryProxyAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjaHR5Zm9sYnpndXF5eHlveXFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MDEwMjQsImV4cCI6MjA5NDA3NzAyNH0.x3ooostMOfHdQFOPzX2O5LDbEwnlqILfUROyl00iqtA"                                    // TODO: replace with Supabase anon (public) key
