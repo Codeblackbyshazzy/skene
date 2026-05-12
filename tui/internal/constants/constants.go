@@ -97,7 +97,7 @@ var DashboardFiles = []DashboardFile{
 // Telemetry — events are sent to a Supabase Edge Function
 const (
 	TelemetryProxyURL     = "https://pchtyfolbzguqyxyoyqh.supabase.co/functions/v1/track-event" // TODO: replace with deployed Edge Function URL
-	TelemetryProxyAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjaHR5Zm9sYnpndXF5eHlveXFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MDEwMjQsImV4cCI6MjA5NDA3NzAyNH0.x3ooostMOfHdQFOPzX2O5LDbEwnlqILfUROyl00iqtA"                                    // TODO: replace with Supabase anon (public) key
+	TelemetryProxyAnonKey = "sb_publishable_PqOH2fvijgns7gyCDFBNAg_2nmZ3saJ"
 	TelemetryQueueSize    = 64
 	TelemetryHTTPTimeout  = 5 * time.Second
 )

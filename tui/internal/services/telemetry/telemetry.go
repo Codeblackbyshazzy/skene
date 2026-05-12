@@ -173,9 +173,7 @@ func (c *Client) post(e event) {
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
-	// Supabase Edge Functions with verify_jwt require both headers.
-	// The anon key is public; RLS on the events table gates direct
-	// access. See the telemetry-proxy/ directory for details.
+	// The publishable key is public; RLS on the events table gates direct access.
 	req.Header.Set("Authorization", "Bearer "+c.anonKey)
 	req.Header.Set("apikey", c.anonKey)
 
