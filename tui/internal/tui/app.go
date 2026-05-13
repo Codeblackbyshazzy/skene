@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -366,9 +367,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err == nil && msg.Result != nil && msg.Result.Error != nil {
 			err = msg.Result.Error
 		}
-		if err != nil {
+		cancelled := errors.Is(err, context.Canceled)
+		if err != nil && !cancelled {
 			a.telemetry.Track(constants.EventAnalysisFailed, nil)
-		} else {
+		} else if err == nil {
 			elapsed := time.Since(a.analysisStartTime).Truncate(time.Second).String()
 			a.telemetry.Track(constants.EventAnalysisCompleted, map[string]string{
 				"duration": elapsed,
@@ -453,7 +455,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "validate":
 			evOK, evFail = constants.EventValidateCompleted, constants.EventValidateFailed
 		}
-		if evOK != "" {
+		if evOK != "" && !errors.Is(msg.Error, context.Canceled) {
 			if msg.Error != nil {
 				a.telemetry.Track(evFail, map[string]string{"duration": duration})
 			} else {
@@ -973,12 +975,16 @@ func (a *App) handleProjectDirNextStepsKeys(key string) tea.Cmd {
 		case "open":
 			outputDir := filepath.Join(a.projectDirView.GetProjectDir(), constants.OutputDirName)
 			_ = browser.OpenURL(outputDir)
+			a.telemetry.Track(constants.EventOutputDirOpened, map[string]string{
+				"source": "project_dir",
+			})
 		case "config":
 			a.configCheckView = nil
 			a.apiKeyView = nil
 			a.providerView = views.NewProviderView()
 			a.providerView.SetSize(a.width, a.height)
 			a.state = StateProviderSelect
+			a.trackView("provider_select", nil)
 		}
 	case "esc":
 		a.projectDirView.HideNextSteps()
@@ -1142,6 +1148,7 @@ func (a *App) handleNextStepsModalKeys(key string) tea.Cmd {
 			a.providerView = views.NewProviderView()
 			a.providerView.SetSize(a.width, a.height)
 			a.state = StateProviderSelect
+			a.trackView("provider_select", nil)
 		case "plan":
 			return a.runEngineCommand("Generating Growth Plan", "plan")
 		case "build":
@@ -1159,6 +1166,9 @@ func (a *App) handleNextStepsModalKeys(key string) tea.Cmd {
 			}
 			outputDir := filepath.Join(projectDir, constants.OutputDirName)
 			_ = browser.OpenURL(outputDir)
+			a.telemetry.Track(constants.EventOutputDirOpened, map[string]string{
+				"source": "results",
+			})
 		}
 	case "esc":
 		a.resultsView.HideNextSteps()

@@ -160,6 +160,7 @@ const (
 	EventValidateFailed    = "validate_failed"
 
 	EventNextStepCancelled = "next_step_cancelled"
+	EventOutputDirOpened   = "output_dir_opened"
 )
 
 // Skene ecosystem package metadata
