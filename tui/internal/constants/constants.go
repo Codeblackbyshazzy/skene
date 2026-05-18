@@ -3,6 +3,7 @@ package constants
 import (
 	"fmt"
 	"os"
+	"time"
 )
 
 // Version and repository information
@@ -92,6 +93,84 @@ var DashboardFiles = []DashboardFile{
 	{ID: "schema", DisplayName: "Schema", Filename: SchemaFile, Description: FileDescSchema, InContext: false},
 	{ID: "plan", DisplayName: "Growth Plan", Filename: GrowthPlanFile, Description: FileDescPlan, InContext: true},
 }
+
+// Telemetry — events are sent to a Supabase Edge Function.
+//
+// TelemetryProxyURL and TelemetryProxyAnonKey are injected at release build
+// time via `-ldflags -X` from GitHub secrets (see tui/Makefile and
+// .github/workflows/tui-release.yml). Forks and local source builds get
+// empty defaults, which causes the telemetry client to silently drop all
+// events.
+var (
+	TelemetryProxyURL     = ""
+	TelemetryProxyAnonKey = ""
+)
+
+const (
+	TelemetryQueueSize   = 64
+	TelemetryHTTPTimeout = 5 * time.Second
+)
+
+// GetTelemetryProxyURL returns the proxy endpoint, honouring the
+// SKENE_TELEMETRY_URL env override for dev/staging environments.
+func GetTelemetryProxyURL() string {
+	if v := os.Getenv("SKENE_TELEMETRY_URL"); v != "" {
+		return v
+	}
+	return TelemetryProxyURL
+}
+
+// GetTelemetryProxyAnonKey returns the proxy anon key, honouring the
+// SKENE_TELEMETRY_KEY env override for dev/staging environments.
+func GetTelemetryProxyAnonKey() string {
+	if v := os.Getenv("SKENE_TELEMETRY_KEY"); v != "" {
+		return v
+	}
+	return TelemetryProxyAnonKey
+}
+
+// Telemetry event names
+const (
+	EventTUIOpened          = "tui_opened"
+	EventProviderSelected   = "provider_selected"
+	EventModelSelected      = "model_selected"
+	EventProjectDirSelected = "project_dir_selected"
+	EventAnalysisStarted    = "analysis_started"
+	EventAnalysisCompleted  = "analysis_completed"
+	EventAnalysisFailed     = "analysis_failed"
+	EventNextStepTriggered  = "next_step_triggered"
+	EventTelemetryToggled   = "telemetry_toggled"
+
+	EventViewEntered            = "view_entered"
+	EventConfigReused           = "config_reused"
+	EventConfigReconfigured     = "config_reconfigured"
+	EventAuthSucceeded          = "auth_succeeded"
+	EventAuthFallbackUsed       = "auth_fallback_used"
+	EventExistingAnalysisAction = "existing_analysis_action"
+	EventVisualizerOpened       = "visualizer_opened"
+	EventTUIExited              = "tui_exited"
+	EventAnalysisCancelled      = "analysis_cancelled"
+	EventAnalysisRetried        = "analysis_retried"
+
+	EventDeploymentStarted   = "deployment_started"
+	EventDeploymentCompleted = "deployment_completed"
+	EventDeploymentFailed    = "deployment_failed"
+
+	EventPlanStarted   = "plan_started"
+	EventPlanCompleted = "plan_completed"
+	EventPlanFailed    = "plan_failed"
+
+	EventBuildStarted   = "build_started"
+	EventBuildCompleted = "build_completed"
+	EventBuildFailed    = "build_failed"
+
+	EventValidateStarted   = "validate_started"
+	EventValidateCompleted = "validate_completed"
+	EventValidateFailed    = "validate_failed"
+
+	EventNextStepCancelled = "next_step_cancelled"
+	EventOutputDirOpened   = "output_dir_opened"
+)
 
 // Skene ecosystem package metadata
 type PackageMeta struct {

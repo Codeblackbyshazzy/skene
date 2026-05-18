@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"skene/internal/services/auth"
 	"skene/internal/services/config"
 	"skene/internal/services/growth"
+	"skene/internal/services/telemetry"
 	"skene/internal/services/versioncheck"
 	"skene/internal/services/visualizer"
 	"skene/internal/tui/components"
@@ -130,6 +132,7 @@ type App struct {
 
 	// Services
 	configMgr *config.Manager
+	telemetry *telemetry.Client
 
 	// Selected configuration
 	selectedProvider *config.Provider
@@ -184,6 +187,18 @@ type App struct {
 	// Interactive prompt state
 	pendingPromptResponse chan string
 
+	// Telemetry: last view name for exit event
+	lastView string
+
+	// Telemetry: command currently being executed via runEngineCommand
+	// (plan / build / validate / push). Used to fire deployment_completed
+	// vs deployment_failed when NextStepDoneMsg arrives.
+	currentNextStepCommand string
+
+	// Telemetry: timestamp when the current next-step command started,
+	// used to attach a duration to its completion event.
+	currentNextStepStart time.Time
+
 	// Program reference for sending messages from background tasks
 	program *tea.Program
 }
@@ -202,13 +217,20 @@ func NewApp() *App {
 		configMgr.Config.OutputDir = constants.DefaultOutputDir
 	}
 
+	tc := telemetry.NewClient(configMgr.Config.TelemetryEnabled)
+	wv := views.NewWelcomeView()
+	wv.SetTelemetryEnabled(configMgr.Config.TelemetryEnabled)
+
 	app := &App{
 		state:        StateWelcome,
 		configMgr:    configMgr,
-		welcomeView:  views.NewWelcomeView(),
+		telemetry:    tc,
+		welcomeView:  wv,
 		providerView: views.NewProviderView(),
 		helpOverlay:  components.NewHelpOverlay(),
 	}
+
+	tc.Track(constants.EventTUIOpened, nil)
 
 	return app
 }
@@ -345,6 +367,15 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err == nil && msg.Result != nil && msg.Result.Error != nil {
 			err = msg.Result.Error
 		}
+		cancelled := errors.Is(err, context.Canceled)
+		if err != nil && !cancelled {
+			a.telemetry.Track(constants.EventAnalysisFailed, nil)
+		} else if err == nil {
+			elapsed := time.Since(a.analysisStartTime).Truncate(time.Second).String()
+			a.telemetry.Track(constants.EventAnalysisCompleted, map[string]string{
+				"duration": elapsed,
+			})
+		}
 		// Update game progress indicator
 		if a.state == StateGame && a.game != nil {
 			if err != nil {
@@ -412,6 +443,26 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.analyzingView.SetDone()
 			}
 		}
+		duration := time.Since(a.currentNextStepStart).Truncate(time.Second).String()
+		var evOK, evFail string
+		switch a.currentNextStepCommand {
+		case "push":
+			evOK, evFail = constants.EventDeploymentCompleted, constants.EventDeploymentFailed
+		case "plan":
+			evOK, evFail = constants.EventPlanCompleted, constants.EventPlanFailed
+		case "build":
+			evOK, evFail = constants.EventBuildCompleted, constants.EventBuildFailed
+		case "validate":
+			evOK, evFail = constants.EventValidateCompleted, constants.EventValidateFailed
+		}
+		if evOK != "" && !errors.Is(msg.Error, context.Canceled) {
+			if msg.Error != nil {
+				a.telemetry.Track(evFail, map[string]string{"duration": duration})
+			} else {
+				a.telemetry.Track(evOK, map[string]string{"duration": duration})
+			}
+		}
+		a.currentNextStepCommand = ""
 		// Update game progress if game is active
 		if a.state == StateGame && a.game != nil && a.analyzingView != nil {
 			if a.analyzingView.IsDone() {
@@ -428,6 +479,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if a.authView != nil {
 				a.authView.ShowFallback()
 			}
+			a.telemetry.Track(constants.EventAuthFallbackUsed, map[string]string{"trigger": "callback_error"})
 		} else {
 			a.configMgr.SetAPIKey(msg.APIKey)
 			a.configMgr.SetUpstreamAPIKey(msg.APIKey)
@@ -461,6 +513,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}))
 
 	case authSuccessTransitionMsg:
+		a.telemetry.Track(constants.EventAuthSucceeded, nil)
 		if a.pendingPushAfterAuth {
 			a.pendingPushAfterAuth = false
 			origin := a.pushReturnState
@@ -563,9 +616,26 @@ func (a *App) handleWelcomeKeys(key string) tea.Cmd {
 			)
 			a.configCheckView.SetSize(a.width, a.height)
 			a.state = StateConfigCheck
+			a.trackView("config_check", map[string]string{"has_valid_config": "true"})
 		} else {
 			a.state = StateProviderSelect
 			a.providerView.SetSize(a.width, a.height)
+			a.trackView("provider_select", nil)
+		}
+		return nil
+	case "t":
+		newState := !a.configMgr.Config.TelemetryEnabled
+		// Force-enable the client before tracking so both opt-in
+		// and opt-out events reach the server; the real state is
+		// applied immediately after.
+		a.telemetry.SetEnabled(true)
+		a.telemetry.Track(constants.EventTelemetryToggled, map[string]string{
+			"enabled": fmt.Sprintf("%t", newState),
+		})
+		a.configMgr.SetTelemetryEnabled(newState)
+		a.telemetry.SetEnabled(newState)
+		if a.welcomeView != nil {
+			a.welcomeView.SetTelemetryEnabled(newState)
 		}
 		return nil
 	case "c":
@@ -588,10 +658,16 @@ func (a *App) handleConfigCheckKeys(msg tea.KeyMsg) tea.Cmd {
 		a.configCheckView.HandleDown()
 	case "enter":
 		if a.configCheckView.SelectedUseExisting() {
+			a.telemetry.Track(constants.EventConfigReused, map[string]string{
+				"provider": a.configMgr.Config.Provider,
+				"model":    a.configMgr.Config.Model,
+			})
 			a.transitionToProjectDir()
 		} else {
+			a.telemetry.Track(constants.EventConfigReconfigured, nil)
 			a.state = StateProviderSelect
 			a.providerView.SetSize(a.width, a.height)
+			a.trackView("provider_select", nil)
 		}
 	case "esc":
 		a.state = StateWelcome
@@ -642,6 +718,8 @@ func (a *App) handleAuthKeys(key string) tea.Cmd {
 		if a.authView != nil {
 			a.authView.ShowFallback()
 		}
+		a.telemetry.Track(constants.EventAuthFallbackUsed, map[string]string{"trigger": "manual"})
+	
 	case "enter":
 		if a.authView != nil && a.authView.IsFallbackShown() {
 			a.transitionToAPIKey()
@@ -736,6 +814,9 @@ func (a *App) handleProjectDirKeys(msg tea.KeyMsg) tea.Cmd {
 		case "enter":
 			choice := a.projectDirView.GetExistingChoiceLabel()
 			a.configMgr.SetProjectDir(a.projectDirView.GetProjectDir())
+			a.telemetry.Track(constants.EventExistingAnalysisAction, map[string]string{
+				"action": choice,
+			})
 			switch choice {
 			case constants.ProjectDirViewAnalysis:
 				a.openJourneyVisualizerIfExists()
@@ -808,9 +889,11 @@ func (a *App) handleProjectDirKeys(msg tea.KeyMsg) tea.Cmd {
 			if a.projectDirView.IsValid() {
 				// Check for existing analysis first
 				if a.projectDirView.CheckForExistingAnalysis() {
+					a.trackView("project_dir_existing", nil)
 					return nil
 				}
 				a.configMgr.SetProjectDir(a.projectDirView.GetProjectDir())
+				a.telemetry.Track(constants.EventProjectDirSelected, nil)
 				return a.startJourneyAnalysis()
 			}
 		case "tab":
@@ -837,9 +920,11 @@ func (a *App) handleProjectDirKeys(msg tea.KeyMsg) tea.Cmd {
 				if a.projectDirView.IsValid() {
 					// Check for existing analysis first
 					if a.projectDirView.CheckForExistingAnalysis() {
+						a.trackView("project_dir_existing", nil)
 						return nil
 					}
 					a.configMgr.SetProjectDir(a.projectDirView.GetProjectDir())
+					a.telemetry.Track(constants.EventProjectDirSelected, nil)
 					return a.startJourneyAnalysis()
 				}
 			}
@@ -890,12 +975,16 @@ func (a *App) handleProjectDirNextStepsKeys(key string) tea.Cmd {
 		case "open":
 			outputDir := filepath.Join(a.projectDirView.GetProjectDir(), constants.OutputDirName)
 			_ = browser.OpenURL(outputDir)
+			a.telemetry.Track(constants.EventOutputDirOpened, map[string]string{
+				"source": "project_dir",
+			})
 		case "config":
 			a.configCheckView = nil
 			a.apiKeyView = nil
 			a.providerView = views.NewProviderView()
 			a.providerView.SetSize(a.width, a.height)
 			a.state = StateProviderSelect
+			a.trackView("provider_select", nil)
 		}
 	case "esc":
 		a.projectDirView.HideNextSteps()
@@ -934,6 +1023,7 @@ func (a *App) handleAnalyzingKeys(key string) tea.Cmd {
 		if a.analyzingView != nil {
 			a.prevState = a.state
 			a.state = StateGame
+			a.trackView("game", nil)
 			if a.game == nil {
 				a.game = game.NewGame(a.width, a.height)
 			} else {
@@ -955,6 +1045,7 @@ func (a *App) handleAnalyzingKeys(key string) tea.Cmd {
 		}
 	case "r":
 		if a.analyzingView != nil && a.analyzingView.HasFailed() {
+			a.telemetry.Track(constants.EventAnalysisRetried, nil)
 			return a.startJourneyAnalysis()
 		}
 	case "esc":
@@ -967,10 +1058,25 @@ func (a *App) handleAnalyzingKeys(key string) tea.Cmd {
 			if a.resultsView != nil {
 				a.refreshResultsView()
 				a.state = StateResults
+				a.trackView("results", nil)
 			} else {
 				a.navigateBackFromAnalyzing()
 			}
 		} else {
+			if a.currentNextStepCommand != "" {
+				a.telemetry.Track(constants.EventNextStepCancelled, map[string]string{
+					"command": a.currentNextStepCommand,
+				})
+				a.currentNextStepCommand = ""
+			} else {
+				analysisType := "codebase"
+				if a.journeyAnalysis {
+					analysisType = "journey"
+				}
+				a.telemetry.Track(constants.EventAnalysisCancelled, map[string]string{
+					"type": analysisType,
+				})
+			}
 			if a.cancelFunc != nil {
 				a.cancelFunc()
 				a.cancelFunc = nil
@@ -1042,6 +1148,7 @@ func (a *App) handleNextStepsModalKeys(key string) tea.Cmd {
 			a.providerView = views.NewProviderView()
 			a.providerView.SetSize(a.width, a.height)
 			a.state = StateProviderSelect
+			a.trackView("provider_select", nil)
 		case "plan":
 			return a.runEngineCommand("Generating Growth Plan", "plan")
 		case "build":
@@ -1059,6 +1166,9 @@ func (a *App) handleNextStepsModalKeys(key string) tea.Cmd {
 			}
 			outputDir := filepath.Join(projectDir, constants.OutputDirName)
 			_ = browser.OpenURL(outputDir)
+			a.telemetry.Track(constants.EventOutputDirOpened, map[string]string{
+				"source": "results",
+			})
 		}
 	case "esc":
 		a.resultsView.HideNextSteps()
@@ -1070,6 +1180,7 @@ func (a *App) openFileDetail(def *constants.DashboardFile) {
 	a.fileDetailView = views.NewFileDetailView(*def, a.getBundleOutputDir(), a.getContextOutputDir())
 	a.fileDetailView.SetSize(a.width, a.height)
 	a.state = StateFileDetail
+	a.trackView("file_detail", map[string]string{"file_id": def.ID})
 }
 
 func (a *App) openJourneyVisualizerIfExists() {
@@ -1109,6 +1220,7 @@ func (a *App) openYAMLVisualizer(def *constants.DashboardFile) {
 		return
 	}
 	_ = browser.OpenURL(url)
+	a.telemetry.Track(constants.EventVisualizerOpened, nil)
 }
 
 func (a *App) handleFileDetailKeys(key string) tea.Cmd {
@@ -1220,6 +1332,9 @@ func (a *App) selectProvider() tea.Cmd {
 
 	a.selectedProvider = provider
 	a.configMgr.SetProvider(provider.ID)
+	a.telemetry.Track(constants.EventProviderSelected, map[string]string{
+		"provider": provider.ID,
+	})
 
 	// Branch based on provider type
 	if provider.ID == "skene" {
@@ -1231,6 +1346,7 @@ func (a *App) selectProvider() tea.Cmd {
 		a.localModelView = views.NewLocalModelView(provider.ID)
 		a.localModelView.SetSize(a.width, a.height)
 		a.state = StateLocalModel
+		a.trackView("local_model", map[string]string{"provider": provider.ID})
 		return a.detectLocalModels()
 	}
 
@@ -1238,6 +1354,7 @@ func (a *App) selectProvider() tea.Cmd {
 	a.modelView = views.NewModelView(provider)
 	a.modelView.SetSize(a.width, a.height)
 	a.state = StateModelSelect
+	a.trackView("model_select", map[string]string{"provider": provider.ID})
 	return nil
 }
 
@@ -1280,6 +1397,9 @@ func (a *App) startSkeneAuth(provider *config.Provider) tea.Cmd {
 	a.authView.SetSize(a.width, a.height)
 	a.authCountdown = 3
 	a.state = StateAuth
+	a.trackView("auth", map[string]string{
+		"is_push_flow": fmt.Sprintf("%t", a.pendingPushAfterAuth),
+	})
 	return tea.Batch(countdown(3), a.waitForAuthCallback())
 }
 
@@ -1321,6 +1441,9 @@ func (a *App) selectModel() {
 
 	a.selectedModel = model
 	a.configMgr.SetModel(model.ID)
+	a.telemetry.Track(constants.EventModelSelected, map[string]string{
+		"model": model.ID,
+	})
 
 	// Go to API key entry
 	a.transitionToAPIKey()
@@ -1330,10 +1453,16 @@ func (a *App) transitionToAPIKey() {
 	a.apiKeyView = views.NewAPIKeyView(a.selectedProvider, a.selectedModel)
 	a.apiKeyView.SetSize(a.width, a.height)
 	a.state = StateAPIKey
+	providerID := ""
+	if a.selectedProvider != nil {
+		providerID = a.selectedProvider.ID
+	}
+	a.trackView("api_key", map[string]string{"provider": providerID})
 }
 
 func (a *App) transitionToProjectDir() {
 	_ = a.configMgr.SaveUserConfig()
+	a.trackView("project_dir", nil)
 	a.projectDirView = views.NewProjectDirView()
 	a.projectDirView.SetSize(a.width, a.height)
 	a.state = StateProjectDir
@@ -1345,12 +1474,18 @@ func (a *App) returnToProjectDirWithExisting() {
 		a.projectDirView.SetSize(a.width, a.height)
 	}
 	a.state = StateProjectDir
+	if a.projectDirView != nil && a.projectDirView.IsAskingExistingChoice() {
+		a.trackView("project_dir_existing", nil)
+	} else {
+		a.trackView("project_dir", nil)
+	}
 }
 
 func (a *App) transitionToResultsFromExisting() {
 	a.resultsView = a.createResultsView()
 	a.resultsView.SetSize(a.width, a.height)
 	a.state = StateResults
+	a.trackView("results", nil)
 }
 
 func (a *App) refreshResultsView() {
@@ -1456,6 +1591,9 @@ func (a *App) navigateBackFromError() {
 func (a *App) startJourneyAnalysis() tea.Cmd {
 	a.applyJourneyConfig()
 	a.journeyAnalysis = true
+	a.telemetry.Track(constants.EventAnalysisStarted, map[string]string{
+		"type": "journey",
+	})
 	a.analyzingView = views.NewCommandView(constants.StepNameJourneyAnalysis)
 	a.analyzingView.SetSize(a.width, a.height)
 	a.analysisStartTime = time.Now()
@@ -1466,6 +1604,9 @@ func (a *App) startJourneyAnalysis() tea.Cmd {
 
 func (a *App) startCodebaseAnalysis() tea.Cmd {
 	a.journeyAnalysis = false
+	a.telemetry.Track(constants.EventAnalysisStarted, map[string]string{
+		"type": "codebase",
+	})
 	a.analyzingView = views.NewCommandView(constants.StepNameCodebaseAnalysis)
 	a.analyzingView.SetSize(a.width, a.height)
 	a.analysisStartTime = time.Now()
@@ -1545,6 +1686,21 @@ func (a *App) startRealAnalysisCmd(p *tea.Program) tea.Cmd {
 }
 
 func (a *App) runEngineCommand(title string, command string) tea.Cmd {
+	a.telemetry.Track(constants.EventNextStepTriggered, map[string]string{
+		"command": command,
+	})
+	a.currentNextStepCommand = command
+	a.currentNextStepStart = time.Now()
+	switch command {
+	case "push":
+		a.telemetry.Track(constants.EventDeploymentStarted, nil)
+	case "plan":
+		a.telemetry.Track(constants.EventPlanStarted, nil)
+	case "build":
+		a.telemetry.Track(constants.EventBuildStarted, nil)
+	case "validate":
+		a.telemetry.Track(constants.EventValidateStarted, nil)
+	}
 	a.analyzingView = views.NewCommandView(title)
 	a.analyzingView.SetSize(a.width, a.height)
 	a.analysisStartTime = time.Now()
@@ -1671,6 +1827,7 @@ func (a *App) showError(err *views.ErrorInfo) {
 	a.errorView = views.NewErrorView(err)
 	a.errorView.SetSize(a.width, a.height)
 	a.state = StateError
+	a.trackView("error", map[string]string{"error_code": err.Code})
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1874,6 +2031,17 @@ func (a *App) getCurrentHelpItems() []components.HelpItem {
 // HELPERS
 // ═══════════════════════════════════════════════════════════════════
 
+// trackView fires a view_entered event and records the view name for the
+// exit event. Pass nil props for views with no extra context.
+func (a *App) trackView(view string, props map[string]string) {
+	a.lastView = view
+	if props == nil {
+		props = map[string]string{}
+	}
+	props["view"] = view
+	a.telemetry.Track(constants.EventViewEntered, props)
+}
+
 // populateSelectedFromConfig fills selectedProvider and selectedModel from
 // the loaded config so that display names are available when the wizard is skipped.
 func (a *App) populateSelectedFromConfig() {
@@ -1990,6 +2158,13 @@ func (a *App) Cleanup() {
 	if a.visualizerServer != nil {
 		a.visualizerServer.Stop()
 		a.visualizerServer = nil
+	}
+	if a.telemetry != nil {
+		a.telemetry.Track(constants.EventTUIExited, map[string]string{
+			"last_view":        a.lastView,
+			"session_duration": a.telemetry.SessionDuration(),
+		})
+		a.telemetry.Close()
 	}
 }
 

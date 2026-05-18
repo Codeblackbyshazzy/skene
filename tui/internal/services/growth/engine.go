@@ -402,6 +402,10 @@ func (e *Engine) runUVX(ctx context.Context, args []string) error {
 	}
 
 done:
+	if ctx.Err() != nil {
+		_ = cmd.Wait()
+		return ctx.Err()
+	}
 	if err := cmd.Wait(); err != nil {
 		tail := strings.Join(lastLines, "\n")
 		if tail != "" {

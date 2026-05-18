@@ -8,8 +8,17 @@ BUILD_DIR=build
 REPO=SkeneTechnologies/skene
 VERSION=tui-v0.4.0
 
-# Build flags — VERSION is injected into the binary at compile time
-LDFLAGS=-ldflags "-s -w -X skene/internal/constants.Version=$(subst tui-,,$(VERSION))"
+# Telemetry endpoint — injected at release time so forks don't ship with
+# Skene's Supabase credentials. Read from env (set by CI from GitHub
+# secrets); empty in local builds, which disables telemetry at runtime.
+TELEMETRY_PROXY_URL ?=
+TELEMETRY_PROXY_KEY ?=
+
+# Build flags — VERSION + telemetry credentials are injected at compile time
+LDFLAGS=-ldflags "-s -w \
+	-X skene/internal/constants.Version=$(subst tui-,,$(VERSION)) \
+	-X skene/internal/constants.TelemetryProxyURL=$(TELEMETRY_PROXY_URL) \
+	-X skene/internal/constants.TelemetryProxyAnonKey=$(TELEMETRY_PROXY_KEY)"
 HAS_GO := $(shell which go >/dev/null 2>&1 && echo yes || echo no)
 
 # Default target
