@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Skene — User Journey Visualizer</title>
+  <title>Skene — Journey Visualizer</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -55,11 +55,116 @@
     .badge-milestone { background: #1f3a2d; color: #56d364; }
     .badge-value  { background: #3d2a1f; color: #f0883e; }
 
-    .badge-stage-signup       { background: #1c2a41; color: #79c0ff; }
-    .badge-stage-activation   { background: #1f3a2d; color: #56d364; }
-    .badge-stage-engagement   { background: #2d1f3a; color: #d2a8ff; }
-    .badge-stage-monetization { background: #3d2a1f; color: #f0883e; }
-    .badge-stage-retention    { background: #3a1f2a; color: #ff7b72; }
+    .badge-stage-discovery   { background: #1c2a41; color: #79c0ff; }
+    .badge-stage-onboarding  { background: #2d1f3a; color: #d2a8ff; }
+    .badge-stage-activation  { background: #1f3a2d; color: #56d364; }
+    .badge-stage-engagement  { background: #1c3a3a; color: #76e3e1; }
+    .badge-stage-retention   { background: #3a1f2a; color: #ff7b72; }
+    .badge-stage-expansion   { background: #3d2a1f; color: #f0883e; }
+    .badge-stage-virality    { background: #3a1c33; color: #ff9ed1; }
+
+    /* Stage column header */
+    .node-stage {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      padding: 12px 16px;
+      min-width: 280px;
+      max-width: 320px;
+    }
+    .node-stage .node-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #e6edf3;
+      margin-bottom: 4px;
+    }
+    .node-stage .node-subtitle {
+      font-size: 12px;
+      color: #8b949e;
+      font-style: italic;
+      margin-bottom: 6px;
+    }
+    .node-stage .node-meta {
+      font-size: 11px;
+      color: #7d8590;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    /* Milestone card */
+    .node-milestone {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      padding: 14px 16px;
+      min-width: 280px;
+      max-width: 320px;
+    }
+    .node-milestone .node-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .node-milestone .node-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #e6edf3;
+      line-height: 1.3;
+    }
+    .node-milestone .node-desc {
+      font-size: 12px;
+      color: #8b949e;
+      line-height: 1.5;
+      margin-bottom: 8px;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .node-milestone .node-meta {
+      font-size: 11px;
+      color: #7d8590;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      margin-bottom: 6px;
+    }
+    .node-milestone .evidence-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .evidence-chip {
+      display: inline-block;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+    .evidence-code { background: #1c2a41; color: #79c0ff; }
+    .evidence-db   { background: #1f3a2d; color: #56d364; }
+    .evidence-config { background: #2d1f3a; color: #d2a8ff; }
+
+    /* Product banner */
+    .node-product {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      padding: 12px 18px;
+      min-width: 260px;
+    }
+    .node-product .node-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #e6edf3;
+    }
+    .node-product .node-meta {
+      font-size: 11px;
+      color: #7d8590;
+      margin-top: 4px;
+    }
 
     /* Feature card */
     .node-feature {
@@ -186,164 +291,168 @@
     const h = React.createElement;
 
     function stageBadgeClass(stageId) {
-      const key = (stageId || '').replace(/^stage_/, '');
-      return `badge badge-stage-${key || 'signup'}`;
+      return `badge badge-stage-${stageId || 'discovery'}`;
     }
 
-    function SubjectNode({ data }) {
-      return h('div', { className: 'node-subject' },
-        h(Handle, { type: 'source', position: Position.Right }),
-        h('div', { className: 'node-header' },
-          h('span', { className: 'node-title' }, data.label),
-          h('span', { className: 'badge badge-entity' }, 'subject'),
-        ),
-        data.table ? h('div', { className: 'node-meta' }, data.table) : null,
+    function ProductNode({ data }) {
+      return h('div', { className: 'node-product' },
+        h('div', { className: 'node-title' }, data.name),
+        data.generatedAt ? h('div', { className: 'node-meta' }, `Generated ${data.generatedAt}`) : null,
+        data.layerLabel ? h('div', { className: 'node-meta', style: { marginTop: 4 } }, data.layerLabel) : null,
       );
     }
 
-    function StepNode({ data }) {
-      const tags = [];
-      if (data.tableRef) tags.push(data.tableRef);
-      if (data.eventType) tags.push(data.eventType);
-      if (data.route) tags.push(data.route);
-
-      const kindBadge = data.kind === 'ui_step' ? 'badge badge-ui' : 'badge badge-milestone';
-      const kindLabel = data.kind === 'ui_step' ? 'UI' : 'milestone';
-
-      return h('div', { className: 'node-feature' },
+    function StageNode({ data }) {
+      return h('div', { className: 'node-stage' },
+        h(Handle, { type: 'source', position: Position.Right }),
         h(Handle, { type: 'target', position: Position.Left }),
-        h(Handle, { type: 'source', position: Position.Right }),
-        h(Handle, { type: 'source', position: Position.Bottom, id: 'value' }),
-        h('div', { className: 'node-header' },
-          h('span', { className: 'node-title' }, data.label),
-          h('span', { className: kindBadge }, kindLabel),
+        h(Handle, { type: 'source', position: Position.Bottom, id: 'milestones' }),
+        h('div', { className: 'node-title' }, data.name),
+        data.subtitle ? h('div', { className: 'node-subtitle' }, data.subtitle) : null,
+        h('div', { className: 'node-meta' },
+          h('span', { className: stageBadgeClass(data.stageId) }, data.stageId),
+          data.layerLabel ? h('span', null, data.layerLabel) : null,
+          h('span', null, `${data.count} milestone${data.count === 1 ? '' : 's'}`),
         ),
-        data.stageLabel ? h('div', { style: { marginBottom: 8 } },
-          h('span', { className: stageBadgeClass(data.stageId) }, data.stageLabel),
-        ) : null,
+      );
+    }
+
+    function MilestoneNode({ data }) {
+      return h('div', { className: 'node-milestone' },
+        h(Handle, { type: 'target', position: Position.Top }),
+        h(Handle, { type: 'source', position: Position.Bottom }),
+        h('div', { className: 'node-header' },
+          h('span', { className: 'node-title' }, data.name),
+          h('span', { className: stageBadgeClass(data.stageId) }, `#${data.order}`),
+        ),
         data.description ? h('div', { className: 'node-desc' }, data.description) : null,
-        data.component ? h('div', { className: 'node-source' }, data.component) : null,
-        tags.length > 0 ? h('div', { className: 'node-tags' },
-          ...tags.map((t, i) => h('span', { key: i, className: 'tag' }, t)),
-        ) : null,
+        data.trackedEvent ? h('div', { className: 'node-meta' }, `event: ${data.trackedEvent}`) : null,
+        typeof data.confidence === 'number'
+          ? h('div', { className: 'node-meta' }, `confidence: ${data.confidence.toFixed(2)}`)
+          : null,
+        data.evidence && data.evidence.length
+          ? h('div', { className: 'evidence-list' },
+              ...data.evidence.map((ev, i) => h('span', {
+                key: i,
+                className: `evidence-chip evidence-${ev.source}`,
+                title: ev.reason || '',
+              }, `${ev.source}: ${ev.label}`)),
+            )
+          : null,
       );
     }
 
-    function ValueNode({ data }) {
-      return h('div', { className: 'node-action' },
-        h(Handle, { type: 'target', position: Position.Top, id: 'value' }),
-        h('div', { className: 'node-header' },
-          h('span', { className: 'node-title' }, data.label),
-          h('span', { className: 'badge badge-value' }, data.valueType || 'value'),
-        ),
-        data.timeToValue ? h('div', { className: 'node-meta' }, data.timeToValue) : null,
-        data.description ? h('div', { className: 'node-desc', style: { marginTop: 6 } }, data.description) : null,
-      );
-    }
+    const nodeTypes = { product: ProductNode, stage: StageNode, milestone: MilestoneNode };
 
-    const nodeTypes = { subject: SubjectNode, step: StepNode, value: ValueNode };
-
-    // user-journey.yaml shape:
-    //   schema_analysis.ttv_journey_by_subject[].{subject_id, subject_label, subject_table,
-    //     ordered_nodes[], value_nodes[], ordered_edges[]}
+    // journey.yaml shape:
+    //   product.{name, generated_at, ...}
+    //   layers[].{id, name, spans_stages: [stage_id, ...]}
+    //   stages[].{id, order, name, subtitle, milestones[], kpis[]}
+    //     milestones[].{id, order, name, description, evidence[], tracked_event, confidence}
+    //       evidence[].{source: code|db|config, reason, path?, table?}
+    //   connectors[]  (empty in v1)
     function buildGraph(doc) {
       const nodes = [];
       const edges = [];
-      const journeys = doc?.schema_analysis?.ttv_journey_by_subject || [];
+      const stages = (doc?.stages || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+      const layers = doc?.layers || [];
+      const product = doc?.product || {};
 
-      const COL_SUBJECT = 0;
-      const COL_STEP_BASE = 340;
-      const COL_STEP_GAP = 320;
-      const STEP_Y = 0;
-      const VALUE_Y_OFFSET = 220;
-      const ROW_HEIGHT = 480;
+      // Map each stage_id -> layer name so we can show grouping.
+      const layerByStage = {};
+      layers.forEach((layer) => {
+        (layer.spans_stages || []).forEach((sid) => {
+          layerByStage[sid] = layer.name || layer.id;
+        });
+      });
 
-      journeys.forEach((journey, journeyIdx) => {
-        const subjectId = journey.subject_id;
-        const yBase = journeyIdx * ROW_HEIGHT;
-        const ns = (id) => (id === subjectId ? subjectId : `${subjectId}__${id}`);
+      const COL_WIDTH = 360;
+      const STAGE_Y = 0;
+      const MILESTONE_BASE_Y = 160;
+      const MILESTONE_GAP = 240;
+
+      // Product banner sits left of the first stage column.
+      nodes.push({
+        id: '__product',
+        type: 'product',
+        position: { x: -COL_WIDTH, y: STAGE_Y },
+        data: {
+          name: product.name || 'Product',
+          generatedAt: product.generated_at || '',
+          layerLabel: layers.length ? `${layers.length} layer${layers.length === 1 ? '' : 's'}, ${stages.length} stage${stages.length === 1 ? '' : 's'}` : '',
+        },
+      });
+
+      stages.forEach((stage, stageIdx) => {
+        const x = stageIdx * COL_WIDTH;
+        const milestones = stage.milestones || [];
+        const stageNodeId = `stage__${stage.id}`;
 
         nodes.push({
-          id: subjectId,
-          type: 'subject',
-          position: { x: COL_SUBJECT, y: yBase + STEP_Y },
+          id: stageNodeId,
+          type: 'stage',
+          position: { x, y: STAGE_Y },
           data: {
-            label: journey.subject_label || subjectId,
-            table: journey.subject_table || '',
+            stageId: stage.id,
+            name: stage.name || stage.id,
+            subtitle: stage.subtitle || '',
+            layerLabel: layerByStage[stage.id] || '',
+            count: milestones.length,
           },
         });
 
-        const stepXById = {};
-        (journey.ordered_nodes || []).forEach((node, i) => {
-          const nodeId = ns(node.id);
-          const x = COL_STEP_BASE + i * COL_STEP_GAP;
-          stepXById[node.id] = x;
-          const tableRef = node.is_ui_only
-            ? ''
-            : [node.schema, node.table].filter(Boolean).join('.');
-          nodes.push({
-            id: nodeId,
-            type: 'step',
-            position: { x, y: yBase + STEP_Y },
-            data: {
-              label: node.label || node.id,
-              kind: node.kind || 'milestone',
-              description: node.description || '',
-              stageId: node.lifecycle_stage_id || node.lifecycle?.stage_id || '',
-              stageLabel: node.lifecycle?.label || node.category || '',
-              tableRef,
-              eventType: node.event_type || '',
-              route: node.route || '',
-              component: node.component || '',
-            },
-          });
-        });
-
-        (journey.value_nodes || []).forEach((vn, i) => {
-          const valueId = ns(vn.id);
-          const linkedX = stepXById[vn.linked_from_node_id];
-          const x = linkedX !== undefined
-            ? linkedX
-            : COL_STEP_BASE + i * COL_STEP_GAP;
-          nodes.push({
-            id: valueId,
-            type: 'value',
-            position: { x, y: yBase + STEP_Y + VALUE_Y_OFFSET },
-            data: {
-              label: vn.label || vn.id,
-              valueType: vn.value_type || 'value',
-              timeToValue: vn.time_to_value_label || '',
-              description: vn.description || '',
-            },
-          });
-          if (vn.linked_from_node_id) {
-            edges.push({
-              id: `ev-${valueId}`,
-              source: ns(vn.linked_from_node_id),
-              sourceHandle: 'value',
-              target: valueId,
-              targetHandle: 'value',
-              type: 'smoothstep',
-              style: { stroke: '#f0883e', strokeWidth: 1.5, strokeDasharray: '4 4' },
-              label: vn.time_to_value_label || 'value',
-            });
-          }
-        });
-
-        (journey.ordered_edges || []).forEach((e, i) => {
-          const sourceId = ns(e.source);
-          const targetId = ns(e.target);
-          const label = e.data_change?.summary || e.label || '';
+        // Horizontal edge: stage -> next stage (left-to-right funnel).
+        if (stageIdx > 0) {
+          const prev = stages[stageIdx - 1];
           edges.push({
-            id: `e-${subjectId}-${i}`,
-            source: sourceId,
-            target: targetId,
+            id: `e-stage-${prev.id}-${stage.id}`,
+            source: `stage__${prev.id}`,
+            target: stageNodeId,
             type: 'smoothstep',
-            animated: e.is_required !== false,
-            style: { stroke: '#30a14e', strokeWidth: 1.5 },
-            label,
+            style: { stroke: '#484f58', strokeWidth: 1.5 },
+            animated: false,
           });
-        });
+        }
+
+        let prevMilestoneId = null;
+        milestones
+          .slice()
+          .sort((a, b) => (a.order || 0) - (b.order || 0))
+          .forEach((m, i) => {
+            const id = `m__${stage.id}__${m.id}`;
+            nodes.push({
+              id,
+              type: 'milestone',
+              position: { x, y: MILESTONE_BASE_Y + i * MILESTONE_GAP },
+              data: {
+                stageId: stage.id,
+                order: m.order,
+                name: m.name || m.id,
+                description: m.description || '',
+                trackedEvent: m.tracked_event || '',
+                confidence: typeof m.confidence === 'number' ? m.confidence : undefined,
+                evidence: (m.evidence || []).map((ev) => ({
+                  source: ev.source || 'code',
+                  label: ev.path || ev.table || ev.source || '',
+                  reason: ev.reason || '',
+                })),
+              },
+            });
+
+            // Vertical edge: stage -> first milestone, then milestone -> milestone.
+            const sourceId = prevMilestoneId || stageNodeId;
+            const sourceHandle = prevMilestoneId ? undefined : 'milestones';
+            edges.push({
+              id: `e-${sourceId}-${id}`,
+              source: sourceId,
+              sourceHandle,
+              target: id,
+              type: 'smoothstep',
+              style: { stroke: '#30a14e', strokeWidth: 1.5 },
+              animated: false,
+            });
+            prevMilestoneId = id;
+          });
       });
 
       return { nodes, edges };
