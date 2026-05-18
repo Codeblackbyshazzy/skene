@@ -22,6 +22,9 @@ type WelcomeView struct {
 	newVersion string
 	updateCmd  string
 	copied     bool
+
+	// Telemetry state
+	telemetryEnabled bool
 }
 
 // NewWelcomeView creates a new welcome view
@@ -77,6 +80,11 @@ func (v *WelcomeView) SetCopied() {
 	v.copied = true
 }
 
+// SetTelemetryEnabled updates the telemetry status displayed on the welcome screen.
+func (v *WelcomeView) SetTelemetryEnabled(on bool) {
+	v.telemetryEnabled = on
+}
+
 // ResetAnimation recreates the animation so it plays from the start
 func (v *WelcomeView) ResetAnimation() tea.Cmd {
 	v.anim = components.NewASCIIMotion()
@@ -107,6 +115,13 @@ func (v *WelcomeView) Render() string {
 	// Version info
 	version := center.Render(styles.Muted.Render(constants.Version + " • " + constants.Repository))
 
+	// Telemetry status
+	telemetryLabel := constants.TelemetryEnabled
+	if !v.telemetryEnabled {
+		telemetryLabel = constants.TelemetryDisabled
+	}
+	telemetryLine := center.Render(styles.Muted.Render(telemetryLabel + " • " + constants.TelemetryHint))
+
 	// Update notification — bordered block with update + hint
 	var updateNotice string
 	if v.newVersion != "" {
@@ -129,6 +144,7 @@ func (v *WelcomeView) Render() string {
 	// Footer help
 	helpItems := []components.HelpItem{
 		{Key: constants.HelpKeyEnter, Desc: constants.HelpDescStart},
+		{Key: constants.HelpKeyT, Desc: constants.HelpDescToggleTelemetry},
 		{Key: constants.HelpKeyCtrlC, Desc: constants.HelpDescQuit},
 	}
 	if v.newVersion != "" {
@@ -146,6 +162,7 @@ func (v *WelcomeView) Render() string {
 		subtitle,
 		"",
 		version,
+		telemetryLine,
 	}
 	if updateNotice != "" {
 		elements = append(elements, "", updateNotice)
@@ -177,6 +194,7 @@ func (v *WelcomeView) Render() string {
 func (v *WelcomeView) GetHelpItems() []components.HelpItem {
 	items := []components.HelpItem{
 		{Key: constants.HelpKeyEnter, Desc: constants.HelpDescStart},
+		{Key: constants.HelpKeyT, Desc: constants.HelpDescToggleTelemetry},
 		{Key: constants.HelpKeyCtrlC, Desc: constants.HelpDescQuit},
 	}
 	if v.newVersion != "" {

@@ -152,6 +152,13 @@ const (
 	UpdateNoticeCopied   = "Copied to clipboard!"
 )
 
+// Telemetry UI
+const (
+	TelemetryEnabled  = "Telemetry: on"
+	TelemetryDisabled = "Telemetry: off"
+	TelemetryHint     = "Anonymous usage stats help us improve Skene"
+)
+
 // Auth view
 const (
 	AuthOpeningBrowser  = "Opening browser for Skene authentication"
@@ -288,6 +295,7 @@ const (
 	HelpKeyM         = "m"
 	HelpKeyR         = "r"
 	HelpKeyC         = "c"
+	HelpKeyT         = "t"
 )
 
 // Help descriptions
@@ -335,4 +343,5 @@ const (
 	HelpDescMove             = "move"
 	HelpDescPlayAgain        = "Kill some more time"
 	HelpDescStartGame        = "start"
+	HelpDescToggleTelemetry  = "toggle telemetry"
 )

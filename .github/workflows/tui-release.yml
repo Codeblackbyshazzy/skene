@@ -42,13 +42,20 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: '0'
+          TELEMETRY_PROXY_URL: ${{ secrets.TELEMETRY_PROXY_URL }}
+          TELEMETRY_PROXY_KEY: ${{ secrets.TELEMETRY_PROXY_KEY }}
         run: |
           BINARY=skene-${{ matrix.goos }}-${{ matrix.goarch }}
           if [ "${{ matrix.goos }}" = "windows" ]; then
             BINARY="${BINARY}.exe"
           fi
           VERSION="${GITHUB_REF_NAME#tui-}"
-          go build -ldflags "-s -w -X skene/internal/constants.Version=${VERSION}" -o "../build/${BINARY}" ./cmd/skene/
+          go build \
+            -ldflags "-s -w \
+              -X skene/internal/constants.Version=${VERSION} \
+              -X skene/internal/constants.TelemetryProxyURL=${TELEMETRY_PROXY_URL} \
+              -X skene/internal/constants.TelemetryProxyAnonKey=${TELEMETRY_PROXY_KEY}" \
+            -o "../build/${BINARY}" ./cmd/skene/
 
       - name: Package archive
         run: |
