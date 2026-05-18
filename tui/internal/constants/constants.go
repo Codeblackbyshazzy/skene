@@ -94,12 +94,21 @@ var DashboardFiles = []DashboardFile{
 	{ID: "plan", DisplayName: "Growth Plan", Filename: GrowthPlanFile, Description: FileDescPlan, InContext: true},
 }
 
-// Telemetry — events are sent to a Supabase Edge Function
+// Telemetry — events are sent to a Supabase Edge Function.
+//
+// TelemetryProxyURL and TelemetryProxyAnonKey are injected at release build
+// time via `-ldflags -X` from GitHub secrets (see tui/Makefile and
+// .github/workflows/tui-release.yml). Forks and local source builds get
+// empty defaults, which causes the telemetry client to silently drop all
+// events.
+var (
+	TelemetryProxyURL     = ""
+	TelemetryProxyAnonKey = ""
+)
+
 const (
-	TelemetryProxyURL     = "https://pchtyfolbzguqyxyoyqh.supabase.co/functions/v1/track-event" // TODO: replace with deployed Edge Function URL
-	TelemetryProxyAnonKey = "sb_publishable_PqOH2fvijgns7gyCDFBNAg_2nmZ3saJ"
-	TelemetryQueueSize    = 64
-	TelemetryHTTPTimeout  = 5 * time.Second
+	TelemetryQueueSize   = 64
+	TelemetryHTTPTimeout = 5 * time.Second
 )
 
 // GetTelemetryProxyURL returns the proxy endpoint, honouring the
