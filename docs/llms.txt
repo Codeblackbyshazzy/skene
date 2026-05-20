@@ -30,10 +30,6 @@ skene push [PATH]
   Upload Skene bundle files under output_dir + latest trigger migration to Skene Cloud (does not build). POST {manifest, files}.
   Flags: -u/--upstream, -q/--quiet, --debug
 
-skene analyse-user-journey [PATH]
-  Compile user-journey.yaml from existing schema/manifest/engine. Defaults ./skene-context/*. Legacy ./skene/ requires explicit paths.
-  Flags: -s/--schema, -M/--manifest, -e/--engine, -o/--output, --api-key, -p/--provider, -m/--model, --base-url, -q/--quiet, --debug, --no-fallback
-
 skene login
   Log in to Skene Cloud upstream for push.
   Flags: -u/--upstream, -s/--status

@@ -153,42 +153,6 @@ See the [build guide](../guides/build.md) for detailed usage.
 
 ---
 
-## `analyse-user-journey`
-
-Compile `user-journey.yaml` from existing `schema.yaml`, `growth-manifest.json`, and `engine.yaml` without re-running the full `analyse-journey` pipeline.
-
-```
-skene analyse-user-journey [PATH] [OPTIONS]
-```
-
-### Arguments
-
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `PATH` | *(omit for `.`)* | Project root. Used for resolving paths and config (sticky `output_dir`). |
-
-### Options
-
-| Flag | Short | Default | Description |
-|------|-------|---------|-------------|
-| `--schema PATH` | `-s` | `./skene-context/schema.yaml` | Path to `schema.yaml` (same default family as `analyse-journey`). |
-| `--manifest PATH` | `-M` | `./skene-context/growth-manifest.json` | Path to `growth-manifest.json`. |
-| `--engine PATH` | `-e` | `./skene-context/engine.yaml` | Path to `engine.yaml`. |
-| `--output PATH` | `-o` | *(next to engine)* | Output path for `user-journey.yaml`. |
-| `--api-key TEXT` | | `$SKENE_API_KEY` | LLM API key |
-| `--provider TEXT` | `-p` | config | LLM provider |
-| `--model TEXT` | `-m` | config | Model name |
-| `--base-url TEXT` | | `$SKENE_BASE_URL` | OpenAI-compatible base URL (`generic` provider) |
-| `--quiet` | `-q` | `false` | Minimal output |
-| `--debug` | | `false` | Verbose / LLM logging |
-| `--no-fallback` | | `false` | Disable model fallback on rate limits |
-
-### Behavior notes
-
-- Defaults assume the primary bundle directory **`./skene-context/`** (aligned with `analyse-journey`). Projects that only use legacy **`./skene/`** should pass `--schema`, `--manifest`, and `--engine` explicitly.
-
----
-
 ## `status`
 
 Show implementation status for `skene-context/engine.yaml`.
