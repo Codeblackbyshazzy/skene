@@ -9,19 +9,21 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      background: #0d1117;
-      color: #c9d1d9;
+      background: #E1E1E1;
+      color: #141414;
     }
 
     .react-flow__node { font-family: inherit; }
 
     /* Subject card */
     .node-subject {
-      background: #161b22;
-      border: 1px solid #30363d;
+      background: #ffffff;
+      border: 1px solid #d0d7de;
+      box-shadow: 0 1px 2px rgba(31, 35, 40, 0.06);
       border-radius: 10px;
-      padding: 14px 18px;
-      min-width: 180px;
+      padding: 22px 16px;
+      min-width: 280px;
+      max-width: 320px;
     }
     .node-subject .node-header {
       display: flex;
@@ -32,61 +34,66 @@
     .node-subject .node-title {
       font-size: 15px;
       font-weight: 600;
-      color: #e6edf3;
+      color: #141414;
       text-transform: capitalize;
     }
     .node-subject .node-meta {
-      font-size: 11px;
-      color: #7d8590;
+      font-size: 12px;
+      color: #4A4A4A;
       font-family: 'SF Mono', 'Fira Code', monospace;
     }
     .badge {
       display: inline-block;
-      font-size: 10px;
-      font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 10px;
+      font-size: 9px;
+      font-weight: 300;
+      padding: 2px 0px;
+      border-radius: 0px;
       text-transform: uppercase;
-      letter-spacing: 0.3px;
+      letter-spacing: 2px;
     }
-    .badge-actor  { background: #1f3a2d; color: #56d364; }
-    .badge-entity { background: #1c2a41; color: #79c0ff; }
-    .badge-ui     { background: #2d1f3a; color: #d2a8ff; }
-    .badge-milestone { background: #1f3a2d; color: #56d364; }
-    .badge-value  { background: #3d2a1f; color: #f0883e; }
+    .badge-actor  { background: #dafbe1; color: #28AF85; }
+    .badge-entity { background: #ddf4ff; color: #0550ae; }
+    .badge-ui     { background: #fbefff; color: #6639ba; }
+    .badge-milestone { background: #dafbe1; color: #116329; }
+    .badge-value  { background: #fff1e5; color: #bc4c00; }
 
-    .badge-stage-discovery   { background: #1c2a41; color: #79c0ff; }
-    .badge-stage-onboarding  { background: #2d1f3a; color: #d2a8ff; }
-    .badge-stage-activation  { background: #1f3a2d; color: #56d364; }
-    .badge-stage-engagement  { background: #1c3a3a; color: #76e3e1; }
-    .badge-stage-retention   { background: #3a1f2a; color: #ff7b72; }
-    .badge-stage-expansion   { background: #3d2a1f; color: #f0883e; }
-    .badge-stage-virality    { background: #3a1c33; color: #ff9ed1; }
+    .badge-stage-discovery   { color: #FAF1E9; }
+    .badge-stage-onboarding  { color: #FAF1E9; }
+    .badge-stage-activation  { color: #FAF1E9; }
+    .badge-stage-engagement  { color: #FAF1E9; }
+    .badge-stage-retention   { color: #FAF1E9; }
+    .badge-stage-expansion   { color: #FAF1E9; }
+    .badge-stage-virality    { color: #FAF1E9; }
 
     /* Stage column header */
     .node-stage {
-      background: #161b22;
-      border: 1px solid #30363d;
+      background: #141414;
+      border: 0px solid #141414;
+      box-shadow: 0 1px 2px rgba(31, 35, 40, 0.06);
       border-radius: 10px;
-      padding: 12px 16px;
-      min-width: 280px;
-      max-width: 320px;
+      padding: 22px 16px;
+      min-width: 360px;
+      max-width: 360px;
+    }
+    .node-stage > .badge {
+      display: inline-block;
+      margin-bottom: 8px;
     }
     .node-stage .node-title {
-      font-size: 15px;
-      font-weight: 600;
-      color: #e6edf3;
-      margin-bottom: 4px;
+      font-size: 22px;
+      font-weight: 400;
+      color: #FAF1E9;
+      margin-bottom: 6px;
     }
     .node-stage .node-subtitle {
       font-size: 12px;
-      color: #8b949e;
+      color: #737373;
       font-style: italic;
-      margin-bottom: 6px;
+      margin-bottom: 10px;
     }
     .node-stage .node-meta {
       font-size: 11px;
-      color: #7d8590;
+      color: #737373;
       display: flex;
       gap: 8px;
       align-items: center;
@@ -94,12 +101,13 @@
 
     /* Milestone card */
     .node-milestone {
-      background: #161b22;
-      border: 1px solid #30363d;
+      background: #ffffff;
+      border: 1px solid #d0d7de;
+      box-shadow: 0 1px 2px rgba(31, 35, 40, 0.06);
       border-radius: 10px;
-      padding: 14px 16px;
-      min-width: 280px;
-      max-width: 320px;
+      padding: 22px 16px;
+      min-width: 360px;
+      max-width: 360px;
     }
     .node-milestone .node-header {
       display: flex;
@@ -111,14 +119,14 @@
     .node-milestone .node-title {
       font-size: 14px;
       font-weight: 600;
-      color: #e6edf3;
+      color: #1f2328;
       line-height: 1.3;
     }
     .node-milestone .node-desc {
       font-size: 12px;
-      color: #8b949e;
+      color: #656d76;
       line-height: 1.5;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
       display: -webkit-box;
       -webkit-line-clamp: 3;
       -webkit-box-orient: vertical;
@@ -126,9 +134,9 @@
     }
     .node-milestone .node-meta {
       font-size: 11px;
-      color: #7d8590;
+      color: #656d76;
       font-family: 'SF Mono', 'Fira Code', monospace;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
     }
     .node-milestone .evidence-list {
       display: flex;
@@ -143,14 +151,15 @@
       border-radius: 4px;
       font-family: 'SF Mono', 'Fira Code', monospace;
     }
-    .evidence-code { background: #1c2a41; color: #79c0ff; }
-    .evidence-db   { background: #1f3a2d; color: #56d364; }
-    .evidence-config { background: #2d1f3a; color: #d2a8ff; }
+    .evidence-code { background: #ddf4ff; color: #0550ae; }
+    .evidence-db   { background: #dafbe1; color: #116329; }
+    .evidence-config { background: #fbefff; color: #6639ba; }
 
     /* Product banner */
     .node-product {
-      background: #161b22;
-      border: 1px solid #30363d;
+      background: #ffffff;
+      border: 1px solid #d0d7de;
+      box-shadow: 0 1px 2px rgba(31, 35, 40, 0.06);
       border-radius: 10px;
       padding: 12px 18px;
       min-width: 260px;
@@ -158,18 +167,19 @@
     .node-product .node-title {
       font-size: 16px;
       font-weight: 700;
-      color: #e6edf3;
+      color: #1f2328;
     }
     .node-product .node-meta {
       font-size: 11px;
-      color: #7d8590;
+      color: #656d76;
       margin-top: 4px;
     }
 
     /* Feature card */
     .node-feature {
-      background: #161b22;
-      border: 1px solid #30363d;
+      background: #ffffff;
+      border: 1px solid #d0d7de;
+      box-shadow: 0 1px 2px rgba(31, 35, 40, 0.06);
       border-radius: 10px;
       padding: 16px 18px;
       min-width: 260px;
@@ -185,12 +195,12 @@
     .node-feature .node-title {
       font-size: 14px;
       font-weight: 600;
-      color: #e6edf3;
+      color: #1f2328;
       line-height: 1.3;
     }
     .node-feature .node-desc {
       font-size: 12px;
-      color: #8b949e;
+      color: #656d76;
       line-height: 1.5;
       margin-bottom: 10px;
       display: -webkit-box;
@@ -200,7 +210,7 @@
     }
     .node-feature .node-source {
       font-size: 11px;
-      color: #7d8590;
+      color: #656d76;
       font-family: 'SF Mono', 'Fira Code', monospace;
       margin-bottom: 8px;
     }
@@ -214,20 +224,21 @@
       font-size: 10px;
       padding: 2px 7px;
       border-radius: 4px;
-      background: #1c2a41;
-      color: #79c0ff;
+      background: #ddf4ff;
+      color: #0550ae;
       font-family: 'SF Mono', 'Fira Code', monospace;
     }
 
     .badge-lifecycle {
-      background: #2d1f3a;
-      color: #d2a8ff;
+      background: #fbefff;
+      color: #6639ba;
     }
 
     /* Action card */
     .node-action {
-      background: #161b22;
-      border: 1px solid #30363d;
+      background: #ffffff;
+      border: 1px solid #d0d7de;
+      box-shadow: 0 1px 2px rgba(31, 35, 40, 0.06);
       border-radius: 10px;
       padding: 14px 18px;
       min-width: 160px;
@@ -241,26 +252,26 @@
     .node-action .node-title {
       font-size: 13px;
       font-weight: 600;
-      color: #e6edf3;
+      color: #1f2328;
       text-transform: capitalize;
     }
     .node-action .node-meta {
       font-size: 11px;
-      color: #7d8590;
+      color: #656d76;
     }
 
-    .badge-action { background: #3d2a1f; color: #f0883e; }
+    .badge-action { background: #fff1e5; color: #bc4c00; }
 
     /* Edge labels */
-    .react-flow__edge-textbg { fill: #161b22; }
-    .react-flow__edge-text { fill: #7d8590; font-size: 11px; }
+    .react-flow__edge-textbg { fill: #ffffff; }
+    .react-flow__edge-text { fill: #656d76; font-size: 11px; }
 
     /* Handles */
     .react-flow__handle {
       width: 8px;
       height: 8px;
-      background: #30363d;
-      border: 2px solid #484f58;
+      background: #d0d7de;
+      border: 2px solid #8c959f;
     }
   </style>
 </head>
@@ -307,10 +318,10 @@
         h(Handle, { type: 'source', position: Position.Right }),
         h(Handle, { type: 'target', position: Position.Left }),
         h(Handle, { type: 'source', position: Position.Bottom, id: 'milestones' }),
+        h('span', { className: stageBadgeClass(data.stageId) }, data.stageId),
         h('div', { className: 'node-title' }, data.name),
         data.subtitle ? h('div', { className: 'node-subtitle' }, data.subtitle) : null,
         h('div', { className: 'node-meta' },
-          h('span', { className: stageBadgeClass(data.stageId) }, data.stageId),
           data.layerLabel ? h('span', null, data.layerLabel) : null,
           h('span', null, `${data.count} milestone${data.count === 1 ? '' : 's'}`),
         ),
@@ -366,7 +377,7 @@
         });
       });
 
-      const COL_WIDTH = 360;
+      const COL_WIDTH = 380;
       const STAGE_Y = 0;
       const MILESTONE_BASE_Y = 160;
       const MILESTONE_GAP = 240;
@@ -409,7 +420,7 @@
             source: `stage__${prev.id}`,
             target: stageNodeId,
             type: 'smoothstep',
-            style: { stroke: '#484f58', strokeWidth: 1.5 },
+            style: { stroke: '#4A4A4A', strokeWidth: 1.5 },
             animated: false,
           });
         }
@@ -448,7 +459,7 @@
               sourceHandle,
               target: id,
               type: 'smoothstep',
-              style: { stroke: '#30a14e', strokeWidth: 1.5 },
+              style: { stroke: '#4A4A4A20', strokeWidth: 1.5 },
               animated: false,
             });
             prevMilestoneId = id;
@@ -469,8 +480,8 @@
           .catch(e => setError(e.message));
       }, []);
 
-      if (error) return h('div', { style: { padding: 40, color: '#f85149' } }, 'Error: ' + error);
-      if (!result) return h('div', { style: { padding: 40, color: '#8b949e' } }, 'Loading\u2026');
+      if (error) return h('div', { style: { padding: 40, color: '#cf222e' } }, 'Error: ' + error);
+      if (!result) return h('div', { style: { padding: 40, color: '#656d76' } }, 'Loading\u2026');
 
       const graph = buildGraph(result.data);
 
@@ -480,17 +491,17 @@
           defaultEdges: graph.edges,
           nodeTypes,
           fitView: true,
-          colorMode: 'dark',
+          colorMode: 'light',
           minZoom: 0.3,
           defaultEdgeOptions: { type: 'smoothstep' },
           proOptions: { hideAttribution: true },
         },
-          h(Background, { gap: 20, size: 1, color: '#21262d' }),
+          h(Background, { gap: 20, size: 2, color: '#C7C7C7' }),
           h(Controls, { showInteractive: false }),
           h(MiniMap, {
-            nodeColor: '#30363d',
-            maskColor: 'rgba(13, 17, 23, 0.7)',
-            style: { background: '#0d1117' },
+            nodeColor: '#d0d7de',
+            maskColor: 'rgba(246, 248, 250, 0.85)',
+            style: { background: '#f6f8fa' },
           }),
         )
       );
