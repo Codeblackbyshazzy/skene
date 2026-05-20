@@ -273,9 +273,319 @@
       background: #d0d7de;
       border: 2px solid #8c959f;
     }
+
+    /* Floating nav - dark theme */
+    .fnav {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 50;
+      width: 200px;
+      background: rgba(20, 20, 20, 0.80);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid #30363d;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    .fnav__body {
+      padding: 12px;
+    }
+    .fnav__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .fnav__logo {
+      height: 18px;
+      width: auto;
+    }
+    .fnav__workspace {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 10px;
+      margin-bottom: 4px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #FAF1E9;
+      text-decoration: none;
+      transition: background 150ms ease;
+    }
+    .fnav__workspace:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .fnav__workspace svg {
+      width: 12px;
+      height: 12px;
+      color: #8b949e;
+    }
+    .fnav__items {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .fnav__item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #FAF1E9;
+      text-decoration: none;
+      transition: background 150ms ease;
+    }
+    .fnav__item:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .fnav__item.is-active {
+      background: rgba(255, 255, 255, 0.15);
+      color: #FAF1E9;
+    }
+    .fnav__item svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+    .fnav__label {
+      padding: 8px 10px 4px;
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: #8b949e;
+    }
+    .fnav__divider {
+      height: 1px;
+      background: #30363d;
+      margin: 6px 0;
+    }
+    .fnav__expand {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 200ms ease-in-out;
+    }
+    .fnav.is-open .fnav__expand {
+      grid-template-rows: 1fr;
+    }
+    .fnav__inner {
+      overflow: hidden;
+    }
+    .fnav__toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 6px 0;
+      margin-top: 4px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      color: #8b949e;
+      transition: color 150ms ease;
+    }
+    .fnav__toggle:hover {
+      color: #FAF1E9;
+    }
+    .fnav__toggle svg {
+      width: 16px;
+      height: 16px;
+      transition: transform 200ms ease;
+    }
+    .fnav.is-open .fnav__toggle svg {
+      transform: rotate(180deg);
+    }
+    /* Resources popover - dark theme */
+    .fnav__popover-wrap {
+      position: relative;
+    }
+    .fnav__popover {
+      display: none;
+      position: absolute;
+      left: 100%;
+      top: 0;
+      margin-left: 8px;
+      z-index: 60;
+      min-width: 160px;
+      padding: 6px;
+      background: rgba(20, 20, 20, 0.95);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+    .fnav__popover.is-open {
+      display: block;
+    }
+    .fnav__popover-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #FAF1E9;
+      text-decoration: none;
+      transition: background 150ms ease;
+    }
+    .fnav__popover-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .fnav__popover-item svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
   </style>
 </head>
 <body>
+  <!-- Inline Lucide icons (ISC licensed) -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <symbol id="icon-layout-dashboard" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>
+    </symbol>
+    <symbol id="icon-route" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>
+    </symbol>
+    <symbol id="icon-plug" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>
+    </symbol>
+    <symbol id="icon-key-round" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/>
+    </symbol>
+    <symbol id="icon-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>
+    </symbol>
+    <symbol id="icon-library" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/>
+    </symbol>
+    <symbol id="icon-log-in" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/>
+    </symbol>
+    <symbol id="icon-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m6 9 6 6 6-6"/>
+    </symbol>
+    <symbol id="icon-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m9 18 6-6-6-6"/>
+    </symbol>
+    <symbol id="icon-file-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>
+    </symbol>
+    <symbol id="icon-help-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>
+    </symbol>
+    <symbol id="icon-message-square" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </symbol>
+  </svg>
+
+  <!-- Floating nav -->
+  <nav id="floatingNav" class="fnav">
+    <div class="fnav__body">
+      <div class="fnav__header">
+        <img src="/skene-logo.svg" alt="Skene" class="fnav__logo" />
+      </div>
+
+      <a href="https://skene.ai" class="fnav__workspace" target="_blank" rel="noopener">
+        My Workspace
+        <svg><use href="#icon-chevron-right"/></svg>
+      </a>
+
+      <ul class="fnav__items">
+        <li>
+          <a href="#" class="fnav__item is-active">
+            <svg><use href="#icon-layout-dashboard"/></svg>
+            Overview
+          </a>
+        </li>
+        <li>
+          <a href="#" class="fnav__item">
+            <svg><use href="#icon-route"/></svg>
+            Journey
+          </a>
+        </li>
+      </ul>
+
+      <div class="fnav__expand">
+        <div class="fnav__inner">
+          <div class="fnav__divider"></div>
+
+          <div class="fnav__label">Manage</div>
+          <ul class="fnav__items">
+            <li>
+              <a href="#" class="fnav__item">
+                <svg><use href="#icon-plug"/></svg>
+                Integrations
+              </a>
+            </li>
+          </ul>
+
+          <div class="fnav__divider"></div>
+
+          <div class="fnav__label">Account</div>
+          <ul class="fnav__items">
+            <li>
+              <a href="#" class="fnav__item">
+                <svg><use href="#icon-key-round"/></svg>
+                API Keys
+              </a>
+            </li>
+            <li>
+              <a href="#" class="fnav__item">
+                <svg><use href="#icon-settings"/></svg>
+                Settings
+              </a>
+            </li>
+          </ul>
+
+          <div class="fnav__divider"></div>
+
+          <ul class="fnav__items">
+            <li class="fnav__popover-wrap">
+              <button type="button" id="resourcesBtn" class="fnav__item" style="width:100%;border:none;background:none;cursor:pointer;text-align:left;">
+                <svg><use href="#icon-library"/></svg>
+                Resources
+                <svg style="margin-left:auto"><use href="#icon-chevron-right"/></svg>
+              </button>
+              <div id="resourcesPopover" class="fnav__popover">
+                <a href="#" class="fnav__popover-item">
+                  <svg><use href="#icon-file-text"/></svg>
+                  Documentation
+                </a>
+                <a href="#" class="fnav__popover-item">
+                  <svg><use href="#icon-help-circle"/></svg>
+                  FAQ
+                </a>
+                <a href="#" class="fnav__popover-item">
+                  <svg><use href="#icon-message-square"/></svg>
+                  Support
+                </a>
+              </div>
+            </li>
+            <li>
+              <a href="#" class="fnav__item">
+                <svg><use href="#icon-log-in"/></svg>
+                Log in
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <button type="button" id="navToggle" class="fnav__toggle" aria-expanded="false" aria-controls="floatingNav">
+        <svg><use href="#icon-chevron-down"/></svg>
+      </button>
+    </div>
+  </nav>
+
   <div id="root" style="width:100vw;height:100vh"></div>
 
   <script type="importmap">
@@ -508,6 +818,46 @@
     }
 
     createRoot(document.getElementById('root')).render(h(App));
+  </script>
+
+  <!-- Floating nav behavior -->
+  <script>
+    (function() {
+      var nav = document.getElementById('floatingNav');
+      var toggle = document.getElementById('navToggle');
+      var resourcesBtn = document.getElementById('resourcesBtn');
+      var resourcesPopover = document.getElementById('resourcesPopover');
+
+      // Toggle expand/collapse
+      toggle.addEventListener('click', function() {
+        var isOpen = nav.classList.toggle('is-open');
+        toggle.setAttribute('aria-expanded', isOpen);
+        // Close resources popover when collapsing
+        if (!isOpen) {
+          resourcesPopover.classList.remove('is-open');
+        }
+      });
+
+      // Resources popover toggle
+      resourcesBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        resourcesPopover.classList.toggle('is-open');
+      });
+
+      // Close popover on outside click
+      document.addEventListener('click', function(e) {
+        if (!resourcesPopover.contains(e.target) && e.target !== resourcesBtn) {
+          resourcesPopover.classList.remove('is-open');
+        }
+      });
+
+      // Close popover on Escape
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          resourcesPopover.classList.remove('is-open');
+        }
+      });
+    })();
   </script>
 </body>
 </html>
