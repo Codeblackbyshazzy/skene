@@ -15,60 +15,19 @@
 
     .react-flow__node { font-family: inherit; }
 
-    /* Subject card */
-    .node-subject {
-      background: #ffffff;
-      border: 1px solid #d0d7de;
-      box-shadow: 0 1px 2px rgba(31, 35, 40, 0.06);
-      border-radius: 10px;
-      padding: 22px 16px;
-      min-width: 280px;
-      max-width: 320px;
-    }
-    .node-subject .node-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 6px;
-    }
-    .node-subject .node-title {
-      font-size: 15px;
-      font-weight: 600;
-      color: #141414;
-      text-transform: capitalize;
-    }
-    .node-subject .node-meta {
-      font-size: 12px;
-      color: #4A4A4A;
-      font-family: 'SF Mono', 'Fira Code', monospace;
-    }
     .badge {
       display: inline-block;
       font-size: 9px;
       font-weight: 300;
-      padding: 2px 0px;
-      border-radius: 0px;
+      padding: 2px 0;
       text-transform: uppercase;
       letter-spacing: 2px;
+      color: #FAF1E9;
     }
-    .badge-actor  { background: #dafbe1; color: #28AF85; }
-    .badge-entity { background: #ddf4ff; color: #0550ae; }
-    .badge-ui     { background: #fbefff; color: #6639ba; }
-    .badge-milestone { background: #dafbe1; color: #116329; }
-    .badge-value  { background: #fff1e5; color: #bc4c00; }
-
-    .badge-stage-discovery   { color: #FAF1E9; }
-    .badge-stage-onboarding  { color: #FAF1E9; }
-    .badge-stage-activation  { color: #FAF1E9; }
-    .badge-stage-engagement  { color: #FAF1E9; }
-    .badge-stage-retention   { color: #FAF1E9; }
-    .badge-stage-expansion   { color: #FAF1E9; }
-    .badge-stage-virality    { color: #FAF1E9; }
 
     /* Stage column header */
     .node-stage {
       background: #141414;
-      border: 0px solid #141414;
       box-shadow: 0 1px 2px rgba(31, 35, 40, 0.06);
       border-radius: 10px;
       padding: 22px 16px;
@@ -111,9 +70,8 @@
     }
     .node-milestone .node-header {
       display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 10px;
+      align-items: center;
+      gap: 8px;
       margin-bottom: 6px;
     }
     .node-milestone .node-title {
@@ -121,14 +79,34 @@
       font-weight: 600;
       color: #1f2328;
       line-height: 1.3;
+      flex: 1;
+      min-width: 0;
+    }
+    .milestone-order {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 999px;
+      background: #EFEFEF;
+      border: 1px solid #D9D9D9;
+      color: #4A4A4A;
+      font-size: 11px;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
     }
     .node-milestone .node-desc {
       font-size: 12px;
       color: #656d76;
       line-height: 1.5;
       margin-bottom: 12px;
+      padding-left: 28px;
       display: -webkit-box;
       -webkit-line-clamp: 3;
+      line-clamp: 3;
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
@@ -137,12 +115,14 @@
       color: #656d76;
       font-family: 'SF Mono', 'Fira Code', monospace;
       margin-bottom: 8px;
+      padding-left: 28px;
     }
     .node-milestone .evidence-list {
       display: flex;
       flex-wrap: wrap;
       gap: 4px;
       margin-top: 4px;
+      padding-left: 28px;
     }
     .evidence-chip {
       display: inline-block;
@@ -174,93 +154,6 @@
       color: #656d76;
       margin-top: 4px;
     }
-
-    /* Feature card */
-    .node-feature {
-      background: #ffffff;
-      border: 1px solid #d0d7de;
-      box-shadow: 0 1px 2px rgba(31, 35, 40, 0.06);
-      border-radius: 10px;
-      padding: 16px 18px;
-      min-width: 260px;
-      max-width: 320px;
-    }
-    .node-feature .node-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 8px;
-    }
-    .node-feature .node-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: #1f2328;
-      line-height: 1.3;
-    }
-    .node-feature .node-desc {
-      font-size: 12px;
-      color: #656d76;
-      line-height: 1.5;
-      margin-bottom: 10px;
-      display: -webkit-box;
-      -webkit-line-clamp: 3;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-    .node-feature .node-source {
-      font-size: 11px;
-      color: #656d76;
-      font-family: 'SF Mono', 'Fira Code', monospace;
-      margin-bottom: 8px;
-    }
-    .node-feature .node-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
-    }
-    .tag {
-      display: inline-block;
-      font-size: 10px;
-      padding: 2px 7px;
-      border-radius: 4px;
-      background: #ddf4ff;
-      color: #0550ae;
-      font-family: 'SF Mono', 'Fira Code', monospace;
-    }
-
-    .badge-lifecycle {
-      background: #fbefff;
-      color: #6639ba;
-    }
-
-    /* Action card */
-    .node-action {
-      background: #ffffff;
-      border: 1px solid #d0d7de;
-      box-shadow: 0 1px 2px rgba(31, 35, 40, 0.06);
-      border-radius: 10px;
-      padding: 14px 18px;
-      min-width: 160px;
-    }
-    .node-action .node-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 4px;
-    }
-    .node-action .node-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: #1f2328;
-      text-transform: capitalize;
-    }
-    .node-action .node-meta {
-      font-size: 11px;
-      color: #656d76;
-    }
-
-    .badge-action { background: #fff1e5; color: #bc4c00; }
 
     /* Edge labels */
     .react-flow__edge-textbg { fill: #ffffff; }
@@ -402,48 +295,6 @@
     .fnav.is-open .fnav__toggle svg {
       transform: rotate(180deg);
     }
-    /* Resources popover - dark theme */
-    .fnav__popover-wrap {
-      position: relative;
-    }
-    .fnav__popover {
-      display: none;
-      position: absolute;
-      left: 100%;
-      top: 0;
-      margin-left: 8px;
-      z-index: 60;
-      min-width: 160px;
-      padding: 6px;
-      background: rgba(20, 20, 20, 0.95);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-      border: 1px solid #30363d;
-      border-radius: 10px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    }
-    .fnav__popover.is-open {
-      display: block;
-    }
-    .fnav__popover-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 10px;
-      border-radius: 6px;
-      font-size: 13px;
-      color: #FAF1E9;
-      text-decoration: none;
-      transition: background 150ms ease;
-    }
-    .fnav__popover-item:hover {
-      background: rgba(255, 255, 255, 0.1);
-    }
-    .fnav__popover-item svg {
-      width: 16px;
-      height: 16px;
-      flex-shrink: 0;
-    }
   </style>
 </head>
 <body>
@@ -476,15 +327,6 @@
     <symbol id="icon-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="m9 18 6-6-6-6"/>
     </symbol>
-    <symbol id="icon-file-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>
-    </symbol>
-    <symbol id="icon-help-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>
-    </symbol>
-    <symbol id="icon-message-square" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-    </symbol>
   </svg>
 
   <!-- Floating nav -->
@@ -494,20 +336,20 @@
         <img src="/skene-logo.svg" alt="Skene" class="fnav__logo" />
       </div>
 
-      <a href="https://skene.ai" class="fnav__workspace" target="_blank" rel="noopener">
+      <a href="https://skene.ai/login" class="fnav__workspace" target="_blank" rel="noopener">
         My Workspace
         <svg><use href="#icon-chevron-right"/></svg>
       </a>
 
       <ul class="fnav__items">
         <li>
-          <a href="#" class="fnav__item is-active">
+          <a href="https://skene.ai/login" class="fnav__item is-active" target="_blank" rel="noopener">
             <svg><use href="#icon-layout-dashboard"/></svg>
             Overview
           </a>
         </li>
         <li>
-          <a href="#" class="fnav__item">
+          <a href="https://skene.ai/login" class="fnav__item" target="_blank" rel="noopener">
             <svg><use href="#icon-route"/></svg>
             Journey
           </a>
@@ -521,7 +363,7 @@
           <div class="fnav__label">Manage</div>
           <ul class="fnav__items">
             <li>
-              <a href="#" class="fnav__item">
+              <a href="https://skene.ai/login" class="fnav__item" target="_blank" rel="noopener">
                 <svg><use href="#icon-plug"/></svg>
                 Integrations
               </a>
@@ -533,13 +375,13 @@
           <div class="fnav__label">Account</div>
           <ul class="fnav__items">
             <li>
-              <a href="#" class="fnav__item">
+              <a href="https://skene.ai/login" class="fnav__item" target="_blank" rel="noopener">
                 <svg><use href="#icon-key-round"/></svg>
                 API Keys
               </a>
             </li>
             <li>
-              <a href="#" class="fnav__item">
+              <a href="https://skene.ai/login" class="fnav__item" target="_blank" rel="noopener">
                 <svg><use href="#icon-settings"/></svg>
                 Settings
               </a>
@@ -549,29 +391,14 @@
           <div class="fnav__divider"></div>
 
           <ul class="fnav__items">
-            <li class="fnav__popover-wrap">
-              <button type="button" id="resourcesBtn" class="fnav__item" style="width:100%;border:none;background:none;cursor:pointer;text-align:left;">
+            <li>
+              <a href="https://www.skene.ai/resources/docs/cloud" class="fnav__item" target="_blank" rel="noopener">
                 <svg><use href="#icon-library"/></svg>
                 Resources
-                <svg style="margin-left:auto"><use href="#icon-chevron-right"/></svg>
-              </button>
-              <div id="resourcesPopover" class="fnav__popover">
-                <a href="#" class="fnav__popover-item">
-                  <svg><use href="#icon-file-text"/></svg>
-                  Documentation
-                </a>
-                <a href="#" class="fnav__popover-item">
-                  <svg><use href="#icon-help-circle"/></svg>
-                  FAQ
-                </a>
-                <a href="#" class="fnav__popover-item">
-                  <svg><use href="#icon-message-square"/></svg>
-                  Support
-                </a>
-              </div>
+              </a>
             </li>
             <li>
-              <a href="#" class="fnav__item">
+              <a href="https://skene.ai/login" class="fnav__item" target="_blank" rel="noopener">
                 <svg><use href="#icon-log-in"/></svg>
                 Log in
               </a>
@@ -603,7 +430,7 @@
   <link rel="stylesheet" href="https://esm.sh/@xyflow/react@12.10.2/dist/style.css" />
 
   <script type="module">
-    import React, { useState, useEffect } from 'react';
+    import React, { memo, useEffect, useMemo, useState } from 'react';
     import { createRoot } from 'react-dom/client';
     import {
       ReactFlow, Background, Controls, MiniMap, Handle, Position,
@@ -611,40 +438,36 @@
 
     const h = React.createElement;
 
-    function stageBadgeClass(stageId) {
-      return `badge badge-stage-${stageId || 'discovery'}`;
-    }
-
-    function ProductNode({ data }) {
+    const ProductNode = memo(function ProductNode({ data }) {
       return h('div', { className: 'node-product' },
         h('div', { className: 'node-title' }, data.name),
         data.generatedAt ? h('div', { className: 'node-meta' }, `Generated ${data.generatedAt}`) : null,
         data.layerLabel ? h('div', { className: 'node-meta', style: { marginTop: 4 } }, data.layerLabel) : null,
       );
-    }
+    });
 
-    function StageNode({ data }) {
+    const StageNode = memo(function StageNode({ data }) {
       return h('div', { className: 'node-stage' },
         h(Handle, { type: 'source', position: Position.Right }),
         h(Handle, { type: 'target', position: Position.Left }),
         h(Handle, { type: 'source', position: Position.Bottom, id: 'milestones' }),
-        h('span', { className: stageBadgeClass(data.stageId) }, data.stageId),
+        h('span', { className: `badge badge-stage-${data.stageId || 'discovery'}` }, data.stageId),
         h('div', { className: 'node-title' }, data.name),
         data.subtitle ? h('div', { className: 'node-subtitle' }, data.subtitle) : null,
         h('div', { className: 'node-meta' },
           data.layerLabel ? h('span', null, data.layerLabel) : null,
-          h('span', null, `${data.count} milestone${data.count === 1 ? '' : 's'}`),
+          h('span', { style: { marginLeft: 'auto' } }, `${data.count} milestone${data.count === 1 ? '' : 's'}`),
         ),
       );
-    }
+    });
 
-    function MilestoneNode({ data }) {
+    const MilestoneNode = memo(function MilestoneNode({ data }) {
       return h('div', { className: 'node-milestone' },
         h(Handle, { type: 'target', position: Position.Top }),
         h(Handle, { type: 'source', position: Position.Bottom }),
         h('div', { className: 'node-header' },
+          data.order != null ? h('span', { className: 'milestone-order' }, data.order) : null,
           h('span', { className: 'node-title' }, data.name),
-          h('span', { className: stageBadgeClass(data.stageId) }, `#${data.order}`),
         ),
         data.description ? h('div', { className: 'node-desc' }, data.description) : null,
         data.trackedEvent ? h('div', { className: 'node-meta' }, `event: ${data.trackedEvent}`) : null,
@@ -657,13 +480,14 @@
                 key: i,
                 className: `evidence-chip evidence-${ev.source}`,
                 title: ev.reason || '',
-              }, `${ev.source}: ${ev.label}`)),
+              }, ev.label)),
             )
           : null,
       );
-    }
+    });
 
     const nodeTypes = { product: ProductNode, stage: StageNode, milestone: MilestoneNode };
+    const defaultEdgeOptions = { type: 'smoothstep' };
 
     // journey.yaml shape:
     //   product.{name, generated_at, ...}
@@ -729,9 +553,7 @@
             id: `e-stage-${prev.id}-${stage.id}`,
             source: `stage__${prev.id}`,
             target: stageNodeId,
-            type: 'smoothstep',
             style: { stroke: '#4A4A4A', strokeWidth: 1.5 },
-            animated: false,
           });
         }
 
@@ -768,9 +590,7 @@
               source: sourceId,
               sourceHandle,
               target: id,
-              type: 'smoothstep',
               style: { stroke: '#4A4A4A20', strokeWidth: 1.5 },
-              animated: false,
             });
             prevMilestoneId = id;
           });
@@ -790,10 +610,10 @@
           .catch(e => setError(e.message));
       }, []);
 
-      if (error) return h('div', { style: { padding: 40, color: '#cf222e' } }, 'Error: ' + error);
-      if (!result) return h('div', { style: { padding: 40, color: '#656d76' } }, 'Loading\u2026');
+      const graph = useMemo(() => (result ? buildGraph(result.data) : null), [result]);
 
-      const graph = buildGraph(result.data);
+      if (error) return h('div', { style: { padding: 40, color: '#cf222e' } }, 'Error: ' + error);
+      if (!graph) return h('div', { style: { padding: 40, color: '#656d76' } }, 'Loading\u2026');
 
       return h('div', { style: { width: '100vw', height: '100vh' } },
         h(ReactFlow, {
@@ -803,8 +623,12 @@
           fitView: true,
           colorMode: 'light',
           minZoom: 0.3,
-          defaultEdgeOptions: { type: 'smoothstep' },
+          defaultEdgeOptions,
           proOptions: { hideAttribution: true },
+          nodesDraggable: false,
+          nodesConnectable: false,
+          edgesReconnectable: false,
+          elementsSelectable: false,
         },
           h(Background, { gap: 20, size: 2, color: '#C7C7C7' }),
           h(Controls, { showInteractive: false }),
@@ -825,37 +649,10 @@
     (function() {
       var nav = document.getElementById('floatingNav');
       var toggle = document.getElementById('navToggle');
-      var resourcesBtn = document.getElementById('resourcesBtn');
-      var resourcesPopover = document.getElementById('resourcesPopover');
 
-      // Toggle expand/collapse
       toggle.addEventListener('click', function() {
         var isOpen = nav.classList.toggle('is-open');
         toggle.setAttribute('aria-expanded', isOpen);
-        // Close resources popover when collapsing
-        if (!isOpen) {
-          resourcesPopover.classList.remove('is-open');
-        }
-      });
-
-      // Resources popover toggle
-      resourcesBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        resourcesPopover.classList.toggle('is-open');
-      });
-
-      // Close popover on outside click
-      document.addEventListener('click', function(e) {
-        if (!resourcesPopover.contains(e.target) && e.target !== resourcesBtn) {
-          resourcesPopover.classList.remove('is-open');
-        }
-      });
-
-      // Close popover on Escape
-      document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-          resourcesPopover.classList.remove('is-open');
-        }
       });
     })();
   </script>
