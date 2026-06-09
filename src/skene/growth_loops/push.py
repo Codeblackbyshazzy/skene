@@ -7,11 +7,15 @@ Builds migration files that create:
 """
 
 import re
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from skene.growth_loops.schema_sql import BASE_SCHEMA_SQL, notify_event_log_sql
+
+if TYPE_CHECKING:
+    from skene.config import Config
 
 BASE_SCHEMA_MIGRATION_PREFIX = "20260201000000"
 BASE_SCHEMA_MIGRATION_NAME = "skene_growth_schema"
@@ -284,6 +288,66 @@ def push_to_upstream(
         loops_count=features_count,
         engine_path=engine_path,
         output_dir=output_dir,
+    )
+
+
+def publish_bundle(
+    project_root: Path,
+    config: "Config",
+    *,
+    upstream: str | None = None,
+    token: str | None = None,
+    warn: Callable[[str], None] | None = None,
+) -> dict[str, Any]:
+    """Collect bundle artifacts + engine metadata and push them upstream.
+
+    Resolves the upstream URL, token, and output dir from ``config`` when not
+    passed explicitly, extracts trigger events / feature count from the engine
+    document (if present), and delegates to :func:`push_to_upstream`. Returns
+    the push result dict (``{"ok": bool, ...}``).
+
+    Raises ``ValueError`` when no upstream token is available. When engine
+    metadata cannot be read, ``warn`` (if given) is called and the push
+    continues with empty trigger events / zero features.
+    """
+    from skene.config import resolve_upstream_token
+    from skene.engine import (
+        collect_engine_trigger_events,
+        default_engine_path,
+        load_engine_document,
+    )
+    from skene.output_paths import DEFAULT_OUTPUT_DIR
+
+    resolved_upstream = upstream or config.upstream or ""
+    resolved_token = token or resolve_upstream_token(config)
+    if not resolved_token:
+        raise ValueError("No upstream token. Run skene login to authenticate.")
+
+    out_dir = config.output_dir or DEFAULT_OUTPUT_DIR
+    engine_path = default_engine_path(project_root, out_dir)
+
+    trigger_events: list[str] = []
+    features_count = 0
+    if engine_path.exists():
+        try:
+            engine_doc = load_engine_document(engine_path, project_root=project_root)
+            trigger_events = collect_engine_trigger_events(engine_doc)
+            features_count = len(engine_doc.features)
+        except Exception as exc:  # noqa: BLE001 — metadata is best-effort
+            if warn is not None:
+                warn(
+                    f"Could not extract manifest metadata from the engine ({exc}). "
+                    "Continuing with empty trigger_events and zero features_count."
+                )
+
+    return push_to_upstream(
+        project_root=project_root,
+        upstream_url=resolved_upstream,
+        token=resolved_token,
+        trigger_events=trigger_events,
+        features_count=features_count,
+        output_dir=out_dir,
+        engine_path=engine_path,
     )
 
 
