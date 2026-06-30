@@ -146,8 +146,8 @@ function classifyConnectionError(err, dbUrl) {
 
   let host = '';
   try { host = new URL(dbUrl).hostname; } catch {}
-  const isSupabaseDirect = host.includes('.supabase.co') && !host.includes('pooler');
-  const isSupabasePooler = host.includes('pooler.supabase.com') || host.includes('pooler.supabase.co');
+  const isSupabasePooler = host.endsWith('.pooler.supabase.com') || host.endsWith('.pooler.supabase.co');
+  const isSupabaseDirect = host.endsWith('.supabase.co') && !isSupabasePooler;
 
   if (code === 'ENOTFOUND') {
     return {
