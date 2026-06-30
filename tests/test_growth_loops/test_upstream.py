@@ -9,6 +9,7 @@ from skene.growth_loops.upstream import (
     _workspace_slug_from_url,
     build_push_manifest,
     collect_push_files,
+    journey_exists_upstream,
     push_to_upstream,
     validate_token,
 )
@@ -133,6 +134,38 @@ class TestValidateToken:
     def test_invalid_token(self, mock_get):
         mock_get.return_value.status_code = 401
         assert validate_token("https://x.com/api/v1", "bad") is False
+
+
+class TestJourneyExistsUpstream:
+    @patch("skene.growth_loops.upstream.httpx.get")
+    def test_exists_true(self, mock_get):
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {"data": {"exists": True}}
+        assert journey_exists_upstream("https://x.com/api/v1", "sk_xxx") is True
+        # Hits the /journey/status endpoint.
+        assert mock_get.call_args.args[0].endswith("/journey/status")
+
+    @patch("skene.growth_loops.upstream.httpx.get")
+    def test_exists_false(self, mock_get):
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {"data": {"exists": False}}
+        assert journey_exists_upstream("https://x.com/api/v1", "sk_xxx") is False
+
+    @patch("skene.growth_loops.upstream.httpx.get")
+    def test_non_200_is_indeterminate(self, mock_get):
+        mock_get.return_value.status_code = 404
+        assert journey_exists_upstream("https://x.com/api/v1", "sk_xxx") is None
+
+    @patch("skene.growth_loops.upstream.httpx.get")
+    def test_exception_is_indeterminate(self, mock_get):
+        mock_get.side_effect = RuntimeError("boom")
+        assert journey_exists_upstream("https://x.com/api/v1", "sk_xxx") is None
+
+    @patch("skene.growth_loops.upstream.httpx.get")
+    def test_missing_exists_field_is_falsey(self, mock_get):
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {"data": {}}
+        assert journey_exists_upstream("https://x.com/api/v1", "sk_xxx") is False
 
 
 class TestPushToUpstream:

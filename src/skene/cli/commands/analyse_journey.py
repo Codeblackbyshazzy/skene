@@ -126,6 +126,16 @@ def analyse_journey_cmd(
         "--no-fallback",
         help="Disable model fallback on rate limits; retry same model instead",
     ),
+    auto_publish: bool = typer.Option(
+        False,
+        "--auto-publish",
+        hidden=True,
+        help=(
+            "After writing journey.yaml, publish it to Skene Cloud when linked to a "
+            "skene workspace and no journey.yaml exists upstream yet. Set by the TUI; "
+            "a no-op for any other provider or when a remote journey already exists."
+        ),
+    ),
 ) -> None:
     """
     Generate a journey.yaml describing the user lifecycle of the target product.
@@ -216,6 +226,56 @@ def analyse_journey_cmd(
     write_journey(journey, journey_path)
 
     _render_summary(journey_path, journey)
+
+    _maybe_auto_publish(rc, config_root, enabled=auto_publish)
+
+
+def _maybe_auto_publish(rc, project_root: Path, *, enabled: bool) -> None:
+    """Publish the freshly written journey.yaml to Skene Cloud on first run.
+
+    Gated on (in order): the TUI-only ``--auto-publish`` opt-in, the skene
+    provider with a linked workspace (upstream URL + token), and the absence of
+    a journey.yaml upstream. A failed or indeterminate presence check skips
+    publishing silently — we never push unless skene.ai definitively reports no
+    journey. Never raises: a publish failure must not fail journey analysis.
+    """
+    if not enabled:
+        return
+
+    from skene.config import resolve_upstream_token
+    from skene.growth_loops.push import publish_bundle
+    from skene.growth_loops.upstream import (
+        _api_base_from_upstream,
+        journey_exists_upstream,
+    )
+    from skene.output import success, warning
+
+    config = rc.config
+    if config.provider != "skene":
+        return
+
+    upstream = config.upstream
+    token = resolve_upstream_token(config)
+    if not upstream or not token:
+        return
+
+    api_base = _api_base_from_upstream(upstream)
+
+    present = journey_exists_upstream(api_base, token)
+    if present is not False:
+        # True (already published) or None (indeterminate) → leave it alone.
+        return
+
+    try:
+        result = publish_bundle(project_root, config, upstream=upstream, token=token)
+    except Exception as exc:  # noqa: BLE001 — auto-publish is best-effort
+        warning(f"Could not publish journey to Skene Cloud: {exc}")
+        return
+
+    if result.get("ok"):
+        success("✓ Published journey to Skene Cloud.")
+    else:
+        warning(f"Could not publish journey to Skene Cloud: {result.get('message', 'unknown error')}")
 
 
 def _infer_product_name(repo_root: Path | None, schema_dir: Path | None) -> str:

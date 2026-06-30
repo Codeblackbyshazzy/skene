@@ -87,6 +87,30 @@ def validate_token(api_base: str, token: str) -> bool:
         return False
 
 
+def journey_exists_upstream(api_base: str, token: str) -> bool | None:
+    """Report whether the workspace already has a pushed ``journey.yaml`` upstream.
+
+    Calls ``GET /journey/status`` (token-scoped; the workspace is resolved from
+    the token). Returns ``True``/``False`` on a definitive answer, or ``None``
+    when the result is indeterminate (non-200, network error, or an endpoint
+    that is not deployed yet) so callers can safely skip auto-publishing.
+    """
+    url = f"{api_base.rstrip('/')}/journey/status"
+    try:
+        resp = httpx.get(
+            url,
+            headers=_auth_headers(token),
+            timeout=10,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            if isinstance(data, dict):
+                return bool(data.get("data", {}).get("exists"))
+        return None
+    except Exception:
+        return None
+
+
 def _relative_path(path: Path, project_root: Path) -> str:
     """Return ``path`` as a POSIX-style string relative to ``project_root``."""
     try:

@@ -6,10 +6,8 @@ import typer
 
 from skene.cli.app import app, resolve_cli_config
 from skene.config import resolve_upstream_token
-from skene.engine import collect_engine_trigger_events, default_engine_path, load_engine_document
-from skene.growth_loops.push import push_to_upstream
+from skene.growth_loops.push import publish_bundle
 from skene.output import error, success, warning
-from skene.output_paths import DEFAULT_OUTPUT_DIR
 
 
 @app.command()
@@ -58,31 +56,13 @@ def push(
         error("No token. Run skene login to authenticate.")
         raise typer.Exit(1)
 
-    out_dir = rc.config.output_dir or DEFAULT_OUTPUT_DIR
-    engine_path = default_engine_path(project_root, out_dir)
-
-    trigger_events: list[str] = []
-    features_count = 0
-    if engine_path.exists():
-        try:
-            engine_doc = load_engine_document(engine_path, project_root=project_root)
-            trigger_events = collect_engine_trigger_events(engine_doc)
-            features_count = len(engine_doc.features)
-        except Exception as exc:
-            warning(
-                f"Could not extract manifest metadata from the engine ({exc}). "
-                "Continuing with empty trigger_events and zero features_count."
-            )
-
     try:
-        result = push_to_upstream(
-            project_root=project_root,
-            upstream_url=resolved_upstream,
+        result = publish_bundle(
+            project_root,
+            rc.config,
+            upstream=resolved_upstream,
             token=resolved_token,
-            trigger_events=trigger_events,
-            features_count=features_count,
-            output_dir=out_dir,
-            engine_path=engine_path,
+            warn=warning,
         )
     except Exception as exc:
         error(f"Deploy failed: {exc}")
