@@ -39,9 +39,9 @@ from skene.analyzers.schema_parsers.models import (
 )
 from skene.output import debug
 
-# relkind filter: ordinary tables, views, materialized views.
+# relkind filter: ordinary tables, partitioned tables, views, materialized views.
 # Injected directly into SQL (static string, never user input).
-_RELKIND_FILTER = "('r', 'v', 'm')"
+_RELKIND_FILTER = "('r', 'p', 'v', 'm')"
 
 
 def _discover_user_schemas(cur: Any) -> list[str]:
@@ -80,10 +80,12 @@ def introspect_db(db_url: str, *, connect_timeout: int = 10) -> SchemaIndex:
 
         # --- 1. Collect tables (names + primary keys) ---
         tables_query = f"""\
-            SELECT DISTINCT c.relname AS table_name
+            SELECT c.relname AS table_name
             FROM pg_class c
             JOIN pg_namespace n ON n.oid = c.relnamespace
+            LEFT JOIN pg_inherits i ON i.inhrelid = c.oid
             WHERE c.relkind IN {_RELKIND_FILTER}
+              AND i.inhrelid IS NULL
               AND n.nspname = ANY(%s)
             ORDER BY c.relname
         """
@@ -167,7 +169,9 @@ def introspect_db(db_url: str, *, connect_timeout: int = 10) -> SchemaIndex:
             JOIN pg_class i ON i.oid = ix.indexrelid
             JOIN pg_namespace n ON n.oid = t.relnamespace
             JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(ix.indkey)
+            LEFT JOIN pg_inherits pi ON pi.inhrelid = t.oid
             WHERE t.relkind IN {_RELKIND_FILTER}
+              AND pi.inhrelid IS NULL
               AND t.relname = ANY(%s)
               AND n.nspname = ANY(%s)
             GROUP BY t.relname, i.relname, ix.indisunique
