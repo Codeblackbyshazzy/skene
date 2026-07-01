@@ -10,10 +10,25 @@ or log line.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import psycopg
 from psycopg.rows import dict_row
+
+
+def _pg_array_to_list(val: Any) -> list[str]:
+    """Convert a PostgreSQL array string like '{a,b,c}' to ['a','b','c']."""
+    if val is None:
+        return []
+    if isinstance(val, (list, tuple)):
+        return [str(v) for v in val]
+    # Strip outer braces
+    inner = str(val).strip("{}")
+    if not inner:
+        return []
+    # Split on commas, strip quotes and whitespace
+    return [item.strip().strip("'") for item in inner.split(",") if item.strip()]
 
 from skene.analyzers.schema_parsers.models import (
     ColumnInfo,
@@ -25,24 +40,19 @@ from skene.analyzers.schema_parsers.models import (
 from skene.output import debug
 
 # relkind filter: ordinary tables, views, materialized views.
+# Injected directly into SQL (static string, never user input).
 _RELKIND_FILTER = "('r', 'v', 'm')"
-
-# System schemas to exclude from introspection.
-_SYSTEM_SCHEMAS = ("pg_catalog", "information_schema", "pg_toast")
 
 
 def _discover_user_schemas(cur: Any) -> list[str]:
     """Return user-defined schema names, excluding system and extension schemas."""
-    cur.execute(
-        """\
+    cur.execute("""\
         SELECT nspname
         FROM pg_namespace
-        WHERE nspname NOT IN %s
+        WHERE nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
           AND nspname NOT LIKE 'pg_%%'
         ORDER BY nspname
-    """,
-        (_SYSTEM_SCHEMAS,),
-    )
+    """)
     return [row["nspname"] for row in cur.fetchall()]
 
 
@@ -69,16 +79,16 @@ def introspect_db(db_url: str, *, connect_timeout: int = 10) -> SchemaIndex:
             return index
 
         # --- 1. Collect tables (names + primary keys) ---
-        tables_query = """\
+        tables_query = f"""\
             SELECT DISTINCT c.relname AS table_name
             FROM pg_class c
             JOIN pg_namespace n ON n.oid = c.relnamespace
-            WHERE c.relkind IN %s
+            WHERE c.relkind IN {_RELKIND_FILTER}
               AND n.nspname = ANY(%s)
             ORDER BY c.relname
         """
         with conn.cursor() as cur:
-            cur.execute(tables_query, (_RELKIND_FILTER, user_schemas))
+            cur.execute(tables_query, (user_schemas,))
             table_names: list[str] = [row["table_name"] for row in cur.fetchall()]
 
         if not table_names:
@@ -87,7 +97,7 @@ def introspect_db(db_url: str, *, connect_timeout: int = 10) -> SchemaIndex:
         # --- 2. Collect all data in parallel-ish queries (single connection, sequential) ---
 
         # 2a. Primary keys per table
-        pk_query = """\
+        pk_query = f"""\
             SELECT c.relname AS table_name,
                    array_agg(a.attname ORDER BY array_position(ix.indkey, a.attnum)) AS pk_columns
             FROM pg_class c
@@ -100,7 +110,9 @@ def introspect_db(db_url: str, *, connect_timeout: int = 10) -> SchemaIndex:
         """
         with conn.cursor() as cur:
             cur.execute(pk_query, (table_names, user_schemas))
-            pk_map: dict[str, list[str]] = {row["table_name"]: row["pk_columns"] for row in cur.fetchall()}
+            pk_map: dict[str, list[str]] = {
+                row["table_name"]: _pg_array_to_list(row["pk_columns"]) for row in cur.fetchall()
+            }
 
         # 2b. Columns per table
         col_query = """\
@@ -139,29 +151,34 @@ def introspect_db(db_url: str, *, connect_timeout: int = 10) -> SchemaIndex:
             cur.execute(fk_query, (table_names, user_schemas))
             fk_map: dict[str, list[dict[str, Any]]] = {}
             for row in cur.fetchall():
-                fk_map.setdefault(row["table_name"], []).append(row)
+                r = dict(row)  # Row → mutable dict
+                r["columns"] = _pg_array_to_list(r["columns"])
+                r["references_columns"] = _pg_array_to_list(r["references_columns"])
+                fk_map.setdefault(r["table_name"], []).append(r)
 
         # 2d. Indexes
-        idx_query = """\
+        idx_query = f"""\
             SELECT t.relname AS table_name,
                    i.relname AS index_name,
                    array_agg(a.attname ORDER BY array_position(ix.indkey, a.attnum)) AS columns,
                    ix.indisunique AS is_unique
             FROM pg_class t
+            JOIN pg_index ix ON ix.indrelid = t.oid
             JOIN pg_class i ON i.oid = ix.indexrelid
-            JOIN pg_index ix ON ix.indexrelid = i.oid
             JOIN pg_namespace n ON n.oid = t.relnamespace
             JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(ix.indkey)
-            WHERE t.relkind IN %s
+            WHERE t.relkind IN {_RELKIND_FILTER}
               AND t.relname = ANY(%s)
               AND n.nspname = ANY(%s)
             GROUP BY t.relname, i.relname, ix.indisunique
         """
         with conn.cursor() as cur:
-            cur.execute(idx_query, ((_RELKIND_FILTER,), table_names, user_schemas))
+            cur.execute(idx_query, (table_names, user_schemas))
             idx_map: dict[str, list[dict[str, Any]]] = {}
             for row in cur.fetchall():
-                idx_map.setdefault(row["table_name"], []).append(row)
+                r = dict(row)
+                r["columns"] = _pg_array_to_list(r["columns"])
+                idx_map.setdefault(r["table_name"], []).append(r)
 
         # --- 3. Assemble TableInfo objects ---
         for tname in table_names:
