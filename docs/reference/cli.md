@@ -102,7 +102,7 @@ The schema agent requires one of two inputs — **never both**:
 - **SQL files** (`--schema-dir`): Provide a directory of pre-exported `*.sql` files defining tables, views, constraints, and indexes.
 - **Live database** (`--db-url`): Connect directly to a running PostgreSQL database. Skene introspects all user-defined schemas at runtime (excluding `pg_catalog`, `information_schema`, `pg_toast`, and any schema prefixed with `pg_`). Credentials are never stored.
 
-`--schema-dir` and `--db-url` are mutually exclusive. At least one of `PATH`, `--schema-dir`, or `--db-url` must be provided.
+`--schema-dir` and `--db-url` are mutually exclusive. At least one of `PATH`, `--schema-dir`, or `--db-url` must be provided. When `PATH` is omitted, only the schema agent runs (no code agent).
 
 ### Behavior notes
 
