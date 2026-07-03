@@ -15,7 +15,7 @@ from skene.analyzers.schema_parsers.postgres_live import introspect_db
 
 def _build_mock_conn(
     schemas: list[str],
-    tables: list[str],
+    tables: list[tuple[str, str]],
     pk_rows: list[dict],
     col_rows: list[dict],
     fk_rows: list[dict],
@@ -26,6 +26,8 @@ def _build_mock_conn(
     psycopg.connect() returns a connection that acts as a context manager,
     so the mock must support __enter__/__exit__ and cursor() must return
     cursors that are also context managers.
+
+    *tables* is a list of ``(schema_name, table_name)`` tuples.
 
     Cursor call order:
     1. Schema discovery (_discover_user_schemas)
@@ -45,7 +47,9 @@ def _build_mock_conn(
 
     cursors = [
         _make_cursor([{"nspname": s} for s in schemas]),  # schema discovery
-        _make_cursor([{"table_name": t} for t in tables]),  # tables
+        _make_cursor(
+            [{"schema_name": s, "table_name": t} for s, t in tables]
+        ),  # tables
         _make_cursor(pk_rows),  # primary keys
         _make_cursor(col_rows),  # columns
         _make_cursor(fk_rows),  # foreign keys
@@ -79,10 +83,11 @@ class TestIntrospectDb:
         """A single table with columns, PK, FK, and index."""
         mock_conn = _build_mock_conn(
             schemas=["public"],
-            tables=["users"],
-            pk_rows=[{"table_name": "users", "pk_columns": ["id"]}],
+            tables=[("public", "users")],
+            pk_rows=[{"schema_name": "public", "table_name": "users", "pk_columns": ["id"]}],
             col_rows=[
                 {
+                    "schema_name": "public",
                     "table_name": "users",
                     "column_name": "id",
                     "data_type": "uuid",
@@ -90,6 +95,7 @@ class TestIntrospectDb:
                     "column_default": None,
                 },
                 {
+                    "schema_name": "public",
                     "table_name": "users",
                     "column_name": "email",
                     "data_type": "text",
@@ -97,6 +103,7 @@ class TestIntrospectDb:
                     "column_default": None,
                 },
                 {
+                    "schema_name": "public",
                     "table_name": "users",
                     "column_name": "name",
                     "data_type": "text",
@@ -107,6 +114,7 @@ class TestIntrospectDb:
             fk_rows=[],
             idx_rows=[
                 {
+                    "schema_name": "public",
                     "table_name": "users",
                     "index_name": "users_pkey",
                     "columns": ["id"],
@@ -118,7 +126,8 @@ class TestIntrospectDb:
             index = introspect_db("postgresql://user:pass@localhost/db")
 
         assert len(index.files) == 1
-        tables = list(index.files.values())[0]
+        assert "public.users.sql" in index.files
+        tables = index.files["public.users.sql"]
         assert len(tables) == 1
         t = tables[0]
         assert isinstance(t, TableInfo)
@@ -141,13 +150,14 @@ class TestIntrospectDb:
         """Tables with FK relationships are captured."""
         mock_conn = _build_mock_conn(
             schemas=["public"],
-            tables=["orders", "users"],
+            tables=[("public", "orders"), ("public", "users")],
             pk_rows=[
-                {"table_name": "orders", "pk_columns": ["id"]},
-                {"table_name": "users", "pk_columns": ["id"]},
+                {"schema_name": "public", "table_name": "orders", "pk_columns": ["id"]},
+                {"schema_name": "public", "table_name": "users", "pk_columns": ["id"]},
             ],
             col_rows=[
                 {
+                    "schema_name": "public",
                     "table_name": "orders",
                     "column_name": "id",
                     "data_type": "uuid",
@@ -155,6 +165,7 @@ class TestIntrospectDb:
                     "column_default": None,
                 },
                 {
+                    "schema_name": "public",
                     "table_name": "orders",
                     "column_name": "user_id",
                     "data_type": "uuid",
@@ -162,6 +173,7 @@ class TestIntrospectDb:
                     "column_default": None,
                 },
                 {
+                    "schema_name": "public",
                     "table_name": "users",
                     "column_name": "id",
                     "data_type": "uuid",
@@ -171,20 +183,24 @@ class TestIntrospectDb:
             ],
             fk_rows=[
                 {
+                    "schema_name": "public",
                     "table_name": "orders",
                     "columns": ["user_id"],
+                    "references_schema": "public",
                     "references_table": "users",
                     "references_columns": ["id"],
                 },
             ],
             idx_rows=[
                 {
+                    "schema_name": "public",
                     "table_name": "orders",
                     "index_name": "orders_pkey",
                     "columns": ["id"],
                     "is_unique": True,
                 },
                 {
+                    "schema_name": "public",
                     "table_name": "users",
                     "index_name": "users_pkey",
                     "columns": ["id"],
@@ -196,24 +212,25 @@ class TestIntrospectDb:
             index = introspect_db("postgresql://user:pass@localhost/db")
 
         assert len(index.files) == 2
-        for tables in index.files.values():
-            for t in tables:
-                if t.name == "orders":
-                    assert len(t.foreign_keys) == 1
-                    fk = t.foreign_keys[0]
-                    assert isinstance(fk, ForeignKey)
-                    assert fk.columns == ["user_id"]
-                    assert fk.references_table == "users"
-                    assert fk.references_columns == ["id"]
+        orders_tables = index.files["public.orders.sql"]
+        for t in orders_tables:
+            if t.name == "orders":
+                assert len(t.foreign_keys) == 1
+                fk = t.foreign_keys[0]
+                assert isinstance(fk, ForeignKey)
+                assert fk.columns == ["user_id"]
+                assert fk.references_table == "users"
+                assert fk.references_columns == ["id"]
 
     def test_views_included(self):
         """Views are included in the schema index."""
         mock_conn = _build_mock_conn(
             schemas=["public"],
-            tables=["user_summary"],
+            tables=[("public", "user_summary")],
             pk_rows=[],
             col_rows=[
                 {
+                    "schema_name": "public",
                     "table_name": "user_summary",
                     "column_name": "user_id",
                     "data_type": "uuid",
@@ -221,6 +238,7 @@ class TestIntrospectDb:
                     "column_default": None,
                 },
                 {
+                    "schema_name": "public",
                     "table_name": "user_summary",
                     "column_name": "total_orders",
                     "data_type": "integer",
@@ -235,9 +253,10 @@ class TestIntrospectDb:
             index = introspect_db("postgresql://user:pass@localhost/db")
 
         assert len(index.files) == 1
-        for tables in index.files.values():
-            assert len(tables) == 1
-            assert tables[0].name == "user_summary"
+        assert "public.user_summary.sql" in index.files
+        tables = index.files["public.user_summary.sql"]
+        assert len(tables) == 1
+        assert tables[0].name == "user_summary"
 
     def test_connection_error_propagates(self):
         """Connection errors are not swallowed."""
@@ -280,13 +299,14 @@ class TestIntrospectDb:
         """Each table gets its own schema file entry."""
         mock_conn = _build_mock_conn(
             schemas=["public"],
-            tables=["users", "posts"],
+            tables=[("public", "users"), ("public", "posts")],
             pk_rows=[
-                {"table_name": "users", "pk_columns": ["id"]},
-                {"table_name": "posts", "pk_columns": ["id"]},
+                {"schema_name": "public", "table_name": "users", "pk_columns": ["id"]},
+                {"schema_name": "public", "table_name": "posts", "pk_columns": ["id"]},
             ],
             col_rows=[
                 {
+                    "schema_name": "public",
                     "table_name": "users",
                     "column_name": "id",
                     "data_type": "uuid",
@@ -294,6 +314,7 @@ class TestIntrospectDb:
                     "column_default": None,
                 },
                 {
+                    "schema_name": "public",
                     "table_name": "posts",
                     "column_name": "id",
                     "data_type": "uuid",
@@ -309,8 +330,8 @@ class TestIntrospectDb:
 
         assert len(index.files) == 2
         file_keys = sorted(index.files.keys())
-        assert "posts.sql" in file_keys
-        assert "users.sql" in file_keys
+        assert "public.posts.sql" in file_keys
+        assert "public.users.sql" in file_keys
 
 
 class TestSchemaDiscovery:
@@ -323,10 +344,11 @@ class TestSchemaDiscovery:
         # are implicitly excluded by the _discover_user_schemas query.
         mock_conn = _build_mock_conn(
             schemas=["public", "app"],  # only user schemas returned
-            tables=["users"],
-            pk_rows=[{"table_name": "users", "pk_columns": ["id"]}],
+            tables=[("public", "users")],
+            pk_rows=[{"schema_name": "public", "table_name": "users", "pk_columns": ["id"]}],
             col_rows=[
                 {
+                    "schema_name": "public",
                     "table_name": "users",
                     "column_name": "id",
                     "data_type": "uuid",
@@ -342,7 +364,8 @@ class TestSchemaDiscovery:
 
         # Should find the table in public schema
         assert len(index.files) == 1
-        tables = list(index.files.values())[0]
+        assert "public.users.sql" in index.files
+        tables = index.files["public.users.sql"]
         assert len(tables) == 1
         assert tables[0].name == "users"
 
@@ -350,10 +373,11 @@ class TestSchemaDiscovery:
         """Tables in non-public user schemas are included."""
         mock_conn = _build_mock_conn(
             schemas=["public", "tenant_a"],
-            tables=["customers"],
-            pk_rows=[{"table_name": "customers", "pk_columns": ["id"]}],
+            tables=[("tenant_a", "customers")],
+            pk_rows=[{"schema_name": "tenant_a", "table_name": "customers", "pk_columns": ["id"]}],
             col_rows=[
                 {
+                    "schema_name": "tenant_a",
                     "table_name": "customers",
                     "column_name": "id",
                     "data_type": "uuid",
@@ -368,6 +392,112 @@ class TestSchemaDiscovery:
             index = introspect_db("postgresql://user:pass@localhost/db")
 
         assert len(index.files) == 1
-        tables = list(index.files.values())[0]
+        assert "tenant_a.customers.sql" in index.files
+        tables = index.files["tenant_a.customers.sql"]
         assert len(tables) == 1
         assert tables[0].name == "customers"
+
+
+class TestMultiSchema:
+    """Test that same-named tables in different schemas stay distinct."""
+
+    def test_same_table_name_different_schemas(self):
+        """public.users and auth.users produce separate files, no collision."""
+        mock_conn = _build_mock_conn(
+            schemas=["public", "auth"],
+            tables=[("public", "users"), ("auth", "users")],
+            pk_rows=[
+                {"schema_name": "public", "table_name": "users", "pk_columns": ["id"]},
+                {"schema_name": "auth", "table_name": "users", "pk_columns": ["id"]},
+            ],
+            col_rows=[
+                {
+                    "schema_name": "public",
+                    "table_name": "users",
+                    "column_name": "id",
+                    "data_type": "uuid",
+                    "is_nullable": "NO",
+                    "column_default": None,
+                },
+                {
+                    "schema_name": "public",
+                    "table_name": "users",
+                    "column_name": "email",
+                    "data_type": "text",
+                    "is_nullable": "NO",
+                    "column_default": None,
+                },
+                {
+                    "schema_name": "auth",
+                    "table_name": "users",
+                    "column_name": "id",
+                    "data_type": "uuid",
+                    "is_nullable": "NO",
+                    "column_default": None,
+                },
+                {
+                    "schema_name": "auth",
+                    "table_name": "users",
+                    "column_name": "email",
+                    "data_type": "text",
+                    "is_nullable": "NO",
+                    "column_default": None,
+                },
+                {
+                    "schema_name": "auth",
+                    "table_name": "users",
+                    "column_name": "encrypted_password",
+                    "data_type": "text",
+                    "is_nullable": "YES",
+                    "column_default": None,
+                },
+            ],
+            fk_rows=[],
+            idx_rows=[
+                {
+                    "schema_name": "public",
+                    "table_name": "users",
+                    "index_name": "users_pkey",
+                    "columns": ["id"],
+                    "is_unique": True,
+                },
+                {
+                    "schema_name": "auth",
+                    "table_name": "users",
+                    "index_name": "users_pkey",
+                    "columns": ["id"],
+                    "is_unique": True,
+                },
+            ],
+        )
+        with patch("psycopg.connect", return_value=mock_conn):
+            index = introspect_db("postgresql://user:pass@localhost/db")
+
+        # Two separate files, no collision
+        assert len(index.files) == 2
+        assert "public.users.sql" in index.files
+        assert "auth.users.sql" in index.files
+
+        # public.users has 2 columns (id, email)
+        pub_tables = index.files["public.users.sql"]
+        assert len(pub_tables) == 1
+        pub_user = pub_tables[0]
+        assert pub_user.name == "users"
+        assert len(pub_user.columns) == 2
+        assert {c.name for c in pub_user.columns} == {"id", "email"}
+
+        # auth.users has 3 columns (id, email, encrypted_password)
+        auth_tables = index.files["auth.users.sql"]
+        assert len(auth_tables) == 1
+        auth_user = auth_tables[0]
+        assert auth_user.name == "users"
+        assert len(auth_user.columns) == 3
+        assert {c.name for c in auth_user.columns} == {
+            "id",
+            "email",
+            "encrypted_password",
+        }
+
+        # Both have the same index name but in different files
+        assert pub_user.indexes[0].name == "users_pkey"
+        assert auth_user.indexes[0].name == "users_pkey"

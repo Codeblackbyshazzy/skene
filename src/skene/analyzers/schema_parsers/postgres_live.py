@@ -78,29 +78,37 @@ def introspect_db(db_url: str, *, connect_timeout: int = 10) -> SchemaIndex:
         if not user_schemas:
             return index
 
-        # --- 1. Collect tables (names + primary keys) ---
+        # --- 1. Collect tables (schema-qualified names) ---
         tables_query = f"""\
-            SELECT c.relname AS table_name
+            SELECT n.nspname AS schema_name,
+                   c.relname AS table_name
             FROM pg_class c
             JOIN pg_namespace n ON n.oid = c.relnamespace
             LEFT JOIN pg_inherits i ON i.inhrelid = c.oid
             WHERE c.relkind IN {_RELKIND_FILTER}
               AND i.inhrelid IS NULL
               AND n.nspname = ANY(%s)
-            ORDER BY c.relname
+            ORDER BY n.nspname, c.relname
         """
         with conn.cursor() as cur:
             cur.execute(tables_query, (user_schemas,))
-            table_names: list[str] = [row["table_name"] for row in cur.fetchall()]
+            table_ids: list[tuple[str, str]] = [
+                (row["schema_name"], row["table_name"]) for row in cur.fetchall()
+            ]
 
-        if not table_names:
+        if not table_ids:
             return index
+
+        # Extract flat lists for legacy ANY() filters
+        table_names: list[str] = [t for _, t in table_ids]
+        schema_names: list[str] = [s for s, _ in table_ids]
 
         # --- 2. Collect all data in parallel-ish queries (single connection, sequential) ---
 
         # 2a. Primary keys per table
         pk_query = f"""\
-            SELECT c.relname AS table_name,
+            SELECT n.nspname AS schema_name,
+                   c.relname AS table_name,
                    array_agg(a.attname ORDER BY array_position(ix.indkey, a.attnum)) AS pk_columns
             FROM pg_class c
             JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -108,33 +116,39 @@ def introspect_db(db_url: str, *, connect_timeout: int = 10) -> SchemaIndex:
             JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = ANY(ix.indkey)
             WHERE c.relname = ANY(%s)
               AND n.nspname = ANY(%s)
-            GROUP BY c.relname
+            GROUP BY n.nspname, c.relname
         """
         with conn.cursor() as cur:
             cur.execute(pk_query, (table_names, user_schemas))
-            pk_map: dict[str, list[str]] = {
-                row["table_name"]: _pg_array_to_list(row["pk_columns"]) for row in cur.fetchall()
+            pk_map: dict[tuple[str, str], list[str]] = {
+                (row["schema_name"], row["table_name"]): _pg_array_to_list(row["pk_columns"])
+                for row in cur.fetchall()
             }
 
         # 2b. Columns per table
         col_query = """\
-            SELECT table_name, column_name, data_type, is_nullable, column_default
+            SELECT table_schema AS schema_name,
+                   table_name, column_name, data_type, is_nullable, column_default
             FROM information_schema.columns
             WHERE table_name = ANY(%s)
               AND table_schema = ANY(%s)
-            ORDER BY table_name, ordinal_position
+            ORDER BY table_schema, table_name, ordinal_position
         """
         with conn.cursor() as cur:
             cur.execute(col_query, (table_names, user_schemas))
-            # Group by table
-            cols_by_table: dict[str, list[dict[str, Any]]] = {}
+            # Group by (schema, table)
+            cols_by_table: dict[tuple[str, str], list[dict[str, Any]]] = {}
             for row in cur.fetchall():
-                cols_by_table.setdefault(row["table_name"], []).append(row)
+                cols_by_table.setdefault(
+                    (row["schema_name"], row["table_name"]), []
+                ).append(row)
 
         # 2c. Foreign keys
         fk_query = """\
-            SELECT tc.table_name,
+            SELECT tc.table_schema AS schema_name,
+                   tc.table_name,
                    array_agg(kcu.column_name ORDER BY kcu.ordinal_position) AS columns,
+                   ccu.table_schema AS references_schema,
                    ccu.table_name AS references_table,
                    array_agg(ccu.column_name ORDER BY kcu.ordinal_position) AS references_columns
             FROM information_schema.table_constraints tc
@@ -147,20 +161,21 @@ def introspect_db(db_url: str, *, connect_timeout: int = 10) -> SchemaIndex:
             WHERE tc.constraint_type = 'FOREIGN KEY'
               AND tc.table_name = ANY(%s)
               AND tc.table_schema = ANY(%s)
-            GROUP BY tc.table_name, ccu.table_name
+            GROUP BY tc.table_schema, tc.table_name, ccu.table_schema, ccu.table_name
         """
         with conn.cursor() as cur:
             cur.execute(fk_query, (table_names, user_schemas))
-            fk_map: dict[str, list[dict[str, Any]]] = {}
+            fk_map: dict[tuple[str, str], list[dict[str, Any]]] = {}
             for row in cur.fetchall():
                 r = dict(row)  # Row → mutable dict
                 r["columns"] = _pg_array_to_list(r["columns"])
                 r["references_columns"] = _pg_array_to_list(r["references_columns"])
-                fk_map.setdefault(r["table_name"], []).append(r)
+                fk_map.setdefault((r["schema_name"], r["table_name"]), []).append(r)
 
         # 2d. Indexes
         idx_query = f"""\
-            SELECT t.relname AS table_name,
+            SELECT n.nspname AS schema_name,
+                   t.relname AS table_name,
                    i.relname AS index_name,
                    array_agg(a.attname ORDER BY array_position(ix.indkey, a.attnum)) AS columns,
                    ix.indisunique AS is_unique
@@ -174,18 +189,20 @@ def introspect_db(db_url: str, *, connect_timeout: int = 10) -> SchemaIndex:
               AND pi.inhrelid IS NULL
               AND t.relname = ANY(%s)
               AND n.nspname = ANY(%s)
-            GROUP BY t.relname, i.relname, ix.indisunique
+            GROUP BY n.nspname, t.relname, i.relname, ix.indisunique
         """
         with conn.cursor() as cur:
             cur.execute(idx_query, (table_names, user_schemas))
-            idx_map: dict[str, list[dict[str, Any]]] = {}
+            idx_map: dict[tuple[str, str], list[dict[str, Any]]] = {}
             for row in cur.fetchall():
                 r = dict(row)
                 r["columns"] = _pg_array_to_list(r["columns"])
-                idx_map.setdefault(r["table_name"], []).append(r)
+                idx_map.setdefault((r["schema_name"], r["table_name"]), []).append(r)
 
         # --- 3. Assemble TableInfo objects ---
-        for tname in table_names:
+        for schema_name, tname in table_ids:
+            table_id = (schema_name, tname)
+
             columns = [
                 ColumnInfo(
                     name=r["column_name"],
@@ -193,10 +210,10 @@ def introspect_db(db_url: str, *, connect_timeout: int = 10) -> SchemaIndex:
                     nullable=r["is_nullable"] == "YES",
                     default=r["column_default"],
                 )
-                for r in cols_by_table.get(tname, [])
+                for r in cols_by_table.get(table_id, [])
             ]
 
-            primary_key = pk_map.get(tname, [])
+            primary_key = pk_map.get(table_id, [])
 
             foreign_keys = [
                 ForeignKey(
@@ -204,7 +221,7 @@ def introspect_db(db_url: str, *, connect_timeout: int = 10) -> SchemaIndex:
                     references_table=r["references_table"],
                     references_columns=r["references_columns"],
                 )
-                for r in fk_map.get(tname, [])
+                for r in fk_map.get(table_id, [])
             ]
 
             indexes = [
@@ -213,12 +230,13 @@ def introspect_db(db_url: str, *, connect_timeout: int = 10) -> SchemaIndex:
                     columns=r["columns"],
                     unique=r["is_unique"],
                 )
-                for r in idx_map.get(tname, [])
+                for r in idx_map.get(table_id, [])
             ]
 
-            # Use a synthetic schema file name: "<table_name>.sql" to mirror
-            # the file parser's per-file structure.
-            schema_file = f"{tname}.sql"
+            # Schema-qualified file name so tables with the same name in
+            # different schemas (e.g. public.users vs. auth.users) don't
+            # collide or overwrite each other.
+            schema_file = f"{schema_name}.{tname}.sql"
             table_info = TableInfo(
                 name=tname,
                 schema_file=schema_file,
