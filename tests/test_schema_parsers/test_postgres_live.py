@@ -501,3 +501,72 @@ class TestMultiSchema:
         # Both have the same index name but in different files
         assert pub_user.indexes[0].name == "users_pkey"
         assert auth_user.indexes[0].name == "users_pkey"
+
+    def test_cross_schema_foreign_key(self):
+        """app.orders.user_id → public.users.id is captured, not dropped."""
+        mock_conn = _build_mock_conn(
+            schemas=["app", "public"],
+            tables=[("app", "orders"), ("public", "users")],
+            pk_rows=[
+                {"schema_name": "app", "table_name": "orders", "pk_columns": ["id"]},
+                {"schema_name": "public", "table_name": "users", "pk_columns": ["id"]},
+            ],
+            col_rows=[
+                {
+                    "schema_name": "app",
+                    "table_name": "orders",
+                    "column_name": "id",
+                    "data_type": "uuid",
+                    "is_nullable": "NO",
+                    "column_default": None,
+                },
+                {
+                    "schema_name": "app",
+                    "table_name": "orders",
+                    "column_name": "user_id",
+                    "data_type": "uuid",
+                    "is_nullable": "NO",
+                    "column_default": None,
+                },
+                {
+                    "schema_name": "public",
+                    "table_name": "users",
+                    "column_name": "id",
+                    "data_type": "uuid",
+                    "is_nullable": "NO",
+                    "column_default": None,
+                },
+            ],
+            fk_rows=[
+                {
+                    "schema_name": "app",
+                    "table_name": "orders",
+                    "columns": ["user_id"],
+                    "references_schema": "public",
+                    "references_table": "users",
+                    "references_columns": ["id"],
+                },
+            ],
+            idx_rows=[
+                {
+                    "schema_name": "app",
+                    "table_name": "orders",
+                    "index_name": "orders_pkey",
+                    "columns": ["id"],
+                    "is_unique": True,
+                },
+            ],
+        )
+        with patch("psycopg.connect", return_value=mock_conn):
+            index = introspect_db("postgresql://user:pass@localhost/db")
+
+        assert len(index.files) == 2
+        assert "app.orders.sql" in index.files
+        assert "public.users.sql" in index.files
+
+        orders = index.files["app.orders.sql"][0]
+        assert len(orders.foreign_keys) == 1
+        fk = orders.foreign_keys[0]
+        assert fk.columns == ["user_id"]
+        assert fk.references_table == "users"
+        assert fk.references_columns == ["id"]
