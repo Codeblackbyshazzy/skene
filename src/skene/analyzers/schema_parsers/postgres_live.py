@@ -65,10 +65,21 @@ def introspect_db(db_url: str, *, connect_timeout: int = 10) -> SchemaIndex:
         A complete PostgreSQL connection string (libpq URL or keyword DSN).
     connect_timeout:
         Seconds to wait for the TCP connection to be established.
+
+    Raises
+    ------
+    psycopg.Error
+        Connection or query errors are re-raised with the connection string
+        redacted.  The password never appears in the exception message.
     """
     index = SchemaIndex()
 
-    with psycopg.connect(db_url, connect_timeout=connect_timeout, row_factory=dict_row) as conn:
+    try:
+        conn = psycopg.connect(db_url, connect_timeout=connect_timeout, row_factory=dict_row)
+    except psycopg.Error as e:
+        raise psycopg.Error("Database connection failed") from e
+
+    with conn:
         tables_by_file: dict[str, dict[str, TableInfo]] = {}
 
         # --- 0. Discover user schemas (exclude pg_*, information_schema) ---

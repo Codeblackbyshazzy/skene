@@ -275,22 +275,20 @@ class TestIntrospectDb:
                 introspect_db("postgresql://user:badpass@localhost/nonexistent")
 
     def test_password_not_in_exception(self):
-        """Password is not leaked in exception messages."""
+        """Password is not leaked in exception messages when psycopg.connect fails."""
         import psycopg
 
-        mock_cursor = MagicMock()
-        mock_cursor.fetchall.side_effect = psycopg.OperationalError("password authentication failed")
-        mock_cursor.__enter__ = lambda s: mock_cursor
-        mock_cursor.__exit__ = lambda s, *a: None
+        # Simulate libpq echoing the full connection string (including password)
+        # in its error message for a malformed or rejected DSN.
+        full_dsn = "postgresql://testuser:supersecret@localhost/testdb"
+        connect_error = psycopg.OperationalError(
+            f'connection to server at "localhost" failed: FATAL: password authentication failed for user "testuser"\nDETAIL: connection string: {full_dsn}'
+        )
 
-        mock_conn = MagicMock()
-        mock_conn.__enter__ = lambda s: mock_conn
-        mock_conn.__exit__ = lambda s, *a: None
-        mock_conn.cursor.return_value = mock_cursor
-
-        with patch("psycopg.connect", return_value=mock_conn):
-            with pytest.raises(psycopg.OperationalError) as exc_info:
-                introspect_db("postgresql://testuser:supersecret@localhost/testdb")
+        with patch("psycopg.connect", side_effect=connect_error):
+            with pytest.raises(psycopg.Error) as exc_info:
+                introspect_db(full_dsn)
+        # The re-raised exception must NOT contain the password.
         assert "supersecret" not in str(exc_info.value)
 
     def test_multiple_tables_different_files(self):
