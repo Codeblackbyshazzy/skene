@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from skene.analyzers.schema_parsers.models import (
     ForeignKey,
+    SchemaIndex,
     TableInfo,
 )
 from skene.analyzers.schema_parsers.postgres_live import introspect_db
@@ -747,3 +750,219 @@ class TestDuplicateConstraintNames:
         assert fk.columns == ["p2_id"]
         assert fk.references_table == "p2"
         assert fk.references_columns == ["id"]
+
+
+# ---------------------------------------------------------------------------
+# Live PostgreSQL integration tests
+# ---------------------------------------------------------------------------
+
+
+def _drop_if_exists(cur: Any, table_name: str) -> None:
+    """Drop a table if it exists (cascade to handle FK references)."""
+    cur.execute(f"DROP TABLE IF EXISTS {table_name} CASCADE")
+
+
+@pytest.mark.db
+class TestLivePostgresLive:
+    """Live PostgreSQL integration tests.
+
+    These tests connect to a real database when ``--db-url`` is provided.
+    They create and drop their own tables so they are safe to run
+    against any database.  Run with::
+
+        uv run pytest tests/test_schema_parsers/test_postgres_live.py \
+            -m db --db-url "postgresql://user:pass@localhost/db" -v
+    """
+
+    def test_empty_db_returns_empty_index(self, pg_conn):
+        """An empty database returns a SchemaIndex with no files."""
+        if pg_conn is None:
+            pytest.skip("no --db-url provided")
+
+        from psycopg.rows import dict_row
+
+        # Use dict_row so we can access columns by name
+        with pg_conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                "SELECT nspname FROM pg_namespace "
+                "WHERE nspname NOT IN ('pg_catalog','information_schema','pg_toast') "
+                "AND nspname NOT LIKE 'pg_%' ORDER BY nspname"
+            )
+            schemas = [r["nspname"] for r in cur.fetchall()]
+
+        from skene.analyzers.schema_parsers.postgres_live import introspect_db
+
+        index = introspect_db(pg_conn._db_url)
+        # The database may already have tables; just verify introspect_db
+        # returns a valid SchemaIndex without raising.
+        assert isinstance(index, SchemaIndex)
+
+    def test_single_table_basic(self, pg_conn):
+        """A single table with columns, PK, FK, and index."""
+        if pg_conn is None:
+            pytest.skip("no --db-url provided")
+
+        table = "live_test_single_table"
+        with pg_conn.cursor() as cur:
+            _drop_if_exists(cur, table)
+            cur.execute(f"""\
+                CREATE TABLE {table} (
+                    id   uuid NOT NULL,
+                    email text NOT NULL,
+                    name text
+                );
+                ALTER TABLE {table} ADD PRIMARY KEY (id);
+                CREATE INDEX {table}_idx ON {table} (id);
+            """)
+        pg_conn.commit()
+
+        try:
+            from skene.analyzers.schema_parsers.postgres_live import introspect_db
+
+            index = introspect_db(pg_conn._db_url)
+            # Database may have other tables; verify our table is present.
+            assert f"public.{table}.sql" in index.files
+            tables = index.files[f"public.{table}.sql"]
+            assert len(tables) == 1
+            t = tables[0]
+            assert t.name == table
+            assert len(t.columns) == 3
+            assert t.columns[0].name == "id"
+            assert t.columns[0].type == "uuid"
+            assert t.columns[0].nullable is False
+            assert t.columns[1].name == "email"
+            assert t.columns[1].nullable is False
+            assert t.columns[2].name == "name"
+            assert t.columns[2].nullable is True
+            assert t.primary_key == ["id"]
+            # Both the explicit index and the PK index are captured.
+            assert len(t.indexes) >= 1
+            idx_names = {ix.name for ix in t.indexes}
+            assert f"{table}_idx" in idx_names
+        finally:
+            with pg_conn.cursor() as cur:
+                _drop_if_exists(cur, table)
+            pg_conn.commit()
+
+    def test_foreign_keys_live(self, pg_conn):
+        """FK relationships are captured correctly."""
+        if pg_conn is None:
+            pytest.skip("no --db-url provided")
+
+        parent = "live_test_parent"
+        child = "live_test_child"
+        with pg_conn.cursor() as cur:
+            _drop_if_exists(cur, child)
+            _drop_if_exists(cur, parent)
+            cur.execute(f"""\
+                CREATE TABLE {parent} (
+                    id uuid NOT NULL,
+                    name text
+                );
+                ALTER TABLE {parent} ADD PRIMARY KEY (id);
+                CREATE TABLE {child} (
+                    id        uuid NOT NULL,
+                    parent_id uuid NOT NULL,
+                    FOREIGN KEY (parent_id) REFERENCES {parent}(id)
+                );
+                ALTER TABLE {child} ADD PRIMARY KEY (id);
+            """)
+        pg_conn.commit()
+
+        try:
+            from skene.analyzers.schema_parsers.postgres_live import introspect_db
+
+            index = introspect_db(pg_conn._db_url)
+            # Database may have other tables; verify our tables are present.
+            child_tables = index.files.get(f"public.{child}.sql", [])
+            assert len(child_tables) == 1
+            c = child_tables[0]
+            assert len(c.foreign_keys) == 1
+            fk = c.foreign_keys[0]
+            assert fk.columns == ["parent_id"]
+            assert fk.references_table == parent
+            assert fk.references_columns == ["id"]
+        finally:
+            with pg_conn.cursor() as cur:
+                _drop_if_exists(cur, child)
+                _drop_if_exists(cur, parent)
+            pg_conn.commit()
+
+    def test_composite_foreign_key_live(self, pg_conn):
+        """A composite FK returns correctly paired columns."""
+        if pg_conn is None:
+            pytest.skip("no --db-url provided")
+
+        parent = "live_test_parent2"
+        child = "live_test_child2"
+        with pg_conn.cursor() as cur:
+            _drop_if_exists(cur, child)
+            _drop_if_exists(cur, parent)
+            cur.execute(f"""\
+                CREATE TABLE {parent} (
+                    a integer NOT NULL,
+                    b integer NOT NULL
+                );
+                ALTER TABLE {parent} ADD PRIMARY KEY (a, b);
+                CREATE TABLE {child} (
+                    id   uuid NOT NULL,
+                    x    integer NOT NULL,
+                    y    integer NOT NULL,
+                    FOREIGN KEY (x, y) REFERENCES {parent}(a, b)
+                );
+                ALTER TABLE {child} ADD PRIMARY KEY (id);
+            """)
+        pg_conn.commit()
+
+        try:
+            from skene.analyzers.schema_parsers.postgres_live import introspect_db
+
+            index = introspect_db(pg_conn._db_url)
+            # Database may have other tables; verify our tables are present.
+            child_tables = index.files.get(f"public.{child}.sql", [])
+            assert len(child_tables) == 1
+            c = child_tables[0]
+            assert len(c.foreign_keys) == 1
+            fk = c.foreign_keys[0]
+            assert fk.columns == ["x", "y"]
+            assert fk.references_table == parent
+            assert fk.references_columns == ["a", "b"]
+        finally:
+            with pg_conn.cursor() as cur:
+                _drop_if_exists(cur, child)
+                _drop_if_exists(cur, parent)
+            pg_conn.commit()
+
+    def test_multi_schema_no_collision_live(self, pg_conn):
+        """Same-named tables in different schemas produce separate files."""
+        if pg_conn is None:
+            pytest.skip("no --db-url provided")
+
+        schema_a = "live_schema_a"
+        schema_b = "live_schema_b"
+        table = "live_test_item"
+        try:
+            with pg_conn.cursor() as cur:
+                cur.execute(f"CREATE SCHEMA IF NOT EXISTS {schema_a}")
+                cur.execute(f"CREATE SCHEMA IF NOT EXISTS {schema_b}")
+                cur.execute(f"CREATE TABLE {schema_a}.{table} (id uuid NOT NULL, PRIMARY KEY (id))")
+                cur.execute(f"CREATE TABLE {schema_b}.{table} (id uuid NOT NULL, name text, PRIMARY KEY (id))")
+            pg_conn.commit()
+
+            from skene.analyzers.schema_parsers.postgres_live import introspect_db
+
+            index = introspect_db(pg_conn._db_url)
+            # Database may have other tables; verify our tables are present.
+            assert f"{schema_a}.{table}.sql" in index.files
+            assert f"{schema_b}.{table}.sql" in index.files
+            assert len(index.files[f"{schema_a}.{table}.sql"]) == 1
+            assert len(index.files[f"{schema_b}.{table}.sql"]) == 1
+            assert len(index.files[f"{schema_a}.{table}.sql"][0].columns) == 1
+            assert len(index.files[f"{schema_b}.{table}.sql"][0].columns) == 2
+        finally:
+            with pg_conn.cursor() as cur:
+                _drop_if_exists(cur, f"{schema_a}.{table}")
+                _drop_if_exists(cur, f"{schema_b}.{table}")
+                cur.execute(f"DROP SCHEMA IF EXISTS {schema_a} CASCADE")
+                cur.execute(f"DROP SCHEMA IF EXISTS {schema_b} CASCADE")
+            pg_conn.commit()

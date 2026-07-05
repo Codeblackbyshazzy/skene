@@ -148,25 +148,30 @@ def introspect_db(db_url: str, *, connect_timeout: int = 10) -> SchemaIndex:
             for row in cur.fetchall():
                 cols_by_table.setdefault((row["schema_name"], row["table_name"]), []).append(row)
 
-        # 2c. Foreign keys
+        # 2c. Foreign keys — use pg_constraint directly so we can pair
+        # referencing columns (conkey) with referenced columns (confkey)
+        # by their position in the array.
         fk_query = """\
-            SELECT tc.table_schema AS schema_name,
-                   tc.table_name,
-                   array_agg(kcu.column_name ORDER BY kcu.ordinal_position) AS columns,
-                   ccu.table_schema AS references_schema,
-                   ccu.table_name AS references_table,
-                   array_agg(ccu.column_name ORDER BY kcu.ordinal_position) AS references_columns
-            FROM information_schema.table_constraints tc
-            JOIN information_schema.key_column_usage kcu
-              ON tc.constraint_name = kcu.constraint_name
-             AND tc.table_schema = kcu.table_schema
-            JOIN information_schema.constraint_column_usage ccu
-              ON ccu.constraint_name = tc.constraint_name
-             AND ccu.ordinal_position = kcu.ordinal_position
-            WHERE tc.constraint_type = 'FOREIGN KEY'
-              AND tc.table_name = ANY(%s)
-              AND tc.table_schema = ANY(%s)
-            GROUP BY tc.table_schema, tc.table_name, ccu.table_schema, ccu.table_name
+            SELECT nsp.nspname AS schema_name,
+                   cl.relname AS table_name,
+                   array_agg(att.attname ORDER BY sub) AS columns,
+                   ref_nsp.nspname AS references_schema,
+                   ref_cl.relname AS references_table,
+                   array_agg(ref_att.attname ORDER BY sub) AS references_columns
+            FROM pg_constraint fk
+            JOIN pg_class cl ON cl.oid = fk.conrelid
+            JOIN pg_namespace nsp ON nsp.oid = cl.relnamespace
+            JOIN LATERAL generate_subscripts(fk.conkey, 1) AS sub ON true
+            JOIN pg_attribute att ON att.attrelid = cl.oid
+                                 AND att.attnum = fk.conkey[sub]
+            JOIN pg_class ref_cl ON ref_cl.oid = fk.confrelid
+            JOIN pg_namespace ref_nsp ON ref_nsp.oid = ref_cl.relnamespace
+            JOIN pg_attribute ref_att ON ref_att.attrelid = ref_cl.oid
+                                    AND ref_att.attnum = fk.confkey[sub]
+            WHERE fk.contype = 'f'
+              AND cl.relname = ANY(%s)
+              AND nsp.nspname = ANY(%s)
+            GROUP BY nsp.nspname, cl.relname, ref_nsp.nspname, ref_cl.relname
         """
         with conn.cursor() as cur:
             cur.execute(fk_query, (table_names, user_schemas))
