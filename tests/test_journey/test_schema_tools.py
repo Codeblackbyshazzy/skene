@@ -205,7 +205,7 @@ async def test_run_schema_agent_against_fixture():
             return AssistantTurn(text="done")
 
     client = _ScriptedAgent()
-    candidates = await run_schema_agent(fixture, client, max_turns=10)
+    candidates = await run_schema_agent(fixture, llm=client, max_turns=10)
     assert len(candidates) == 1
     assert candidates[0].proposed_id == "account_created"
     assert candidates[0].evidence[0].source.value == "db"
