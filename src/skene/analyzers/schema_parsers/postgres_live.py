@@ -151,6 +151,7 @@ def introspect_db(db_url: str, *, connect_timeout: int = 10) -> SchemaIndex:
              AND tc.table_schema = kcu.table_schema
             JOIN information_schema.constraint_column_usage ccu
               ON ccu.constraint_name = tc.constraint_name
+             AND ccu.ordinal_position = kcu.ordinal_position
             WHERE tc.constraint_type = 'FOREIGN KEY'
               AND tc.table_name = ANY(%s)
               AND tc.table_schema = ANY(%s)

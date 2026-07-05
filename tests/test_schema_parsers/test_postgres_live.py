@@ -568,3 +568,184 @@ class TestMultiSchema:
         assert fk.columns == ["user_id"]
         assert fk.references_table == "users"
         assert fk.references_columns == ["id"]
+
+
+class TestCompositeForeignKey:
+    """Test that multi-column foreign keys are introspected correctly."""
+
+    def test_composite_foreign_key(self):
+        """A composite FK returns correctly paired columns, not a Cartesian product."""
+        mock_conn = _build_mock_conn(
+            schemas=["public"],
+            tables=[("public", "parent"), ("public", "child")],
+            pk_rows=[
+                {
+                    "schema_name": "public",
+                    "table_name": "parent",
+                    "pk_columns": ["a", "b"],
+                },
+                {
+                    "schema_name": "public",
+                    "table_name": "child",
+                    "pk_columns": ["id"],
+                },
+            ],
+            col_rows=[
+                {
+                    "schema_name": "public",
+                    "table_name": "parent",
+                    "column_name": "a",
+                    "data_type": "integer",
+                    "is_nullable": "NO",
+                    "column_default": None,
+                },
+                {
+                    "schema_name": "public",
+                    "table_name": "parent",
+                    "column_name": "b",
+                    "data_type": "integer",
+                    "is_nullable": "NO",
+                    "column_default": None,
+                },
+                {
+                    "schema_name": "public",
+                    "table_name": "child",
+                    "column_name": "id",
+                    "data_type": "uuid",
+                    "is_nullable": "NO",
+                    "column_default": None,
+                },
+                {
+                    "schema_name": "public",
+                    "table_name": "child",
+                    "column_name": "x",
+                    "data_type": "integer",
+                    "is_nullable": "NO",
+                    "column_default": None,
+                },
+                {
+                    "schema_name": "public",
+                    "table_name": "child",
+                    "column_name": "y",
+                    "data_type": "integer",
+                    "is_nullable": "NO",
+                    "column_default": None,
+                },
+            ],
+            fk_rows=[
+                {
+                    "schema_name": "public",
+                    "table_name": "child",
+                    "columns": ["x", "y"],
+                    "references_schema": "public",
+                    "references_table": "parent",
+                    "references_columns": ["a", "b"],
+                },
+            ],
+            idx_rows=[
+                {
+                    "schema_name": "public",
+                    "table_name": "parent",
+                    "index_name": "parent_pkey",
+                    "columns": ["a", "b"],
+                    "is_unique": True,
+                },
+                {
+                    "schema_name": "public",
+                    "table_name": "child",
+                    "index_name": "child_pkey",
+                    "columns": ["id"],
+                    "is_unique": True,
+                },
+            ],
+        )
+        with patch("psycopg.connect", return_value=mock_conn):
+            index = introspect_db("postgresql://user:pass@localhost/db")
+
+        assert len(index.files) == 2
+        child_tables = index.files["public.child.sql"]
+        assert len(child_tables) == 1
+        child = child_tables[0]
+        assert len(child.foreign_keys) == 1
+        fk = child.foreign_keys[0]
+        assert fk.columns == ["x", "y"]
+        assert fk.references_table == "parent"
+        assert fk.references_columns == ["a", "b"]
+
+
+class TestDuplicateConstraintNames:
+    """Test that same-named FK constraints on different tables don't cross-match."""
+
+    def test_duplicate_constraint_names_same_table_name(self):
+        """Two FKs with the same name on different tables each return exactly one correct FK."""
+        mock_conn = _build_mock_conn(
+            schemas=["public"],
+            tables=[
+                ("public", "p1"),
+                ("public", "p2"),
+                ("public", "c1"),
+                ("public", "c2"),
+            ],
+            pk_rows=[
+                {"schema_name": "public", "table_name": "p1", "pk_columns": ["id"]},
+                {"schema_name": "public", "table_name": "p2", "pk_columns": ["id"]},
+                {"schema_name": "public", "table_name": "c1", "pk_columns": ["id"]},
+                {"schema_name": "public", "table_name": "c2", "pk_columns": ["id"]},
+            ],
+            col_rows=[
+                {"schema_name": "public", "table_name": "p1", "column_name": "id", "data_type": "integer", "is_nullable": "NO", "column_default": None},
+                {"schema_name": "public", "table_name": "p2", "column_name": "id", "data_type": "integer", "is_nullable": "NO", "column_default": None},
+                {"schema_name": "public", "table_name": "c1", "column_name": "id", "data_type": "integer", "is_nullable": "NO", "column_default": None},
+                {"schema_name": "public", "table_name": "c1", "column_name": "p1_id", "data_type": "integer", "is_nullable": "NO", "column_default": None},
+                {"schema_name": "public", "table_name": "c2", "column_name": "id", "data_type": "integer", "is_nullable": "NO", "column_default": None},
+                {"schema_name": "public", "table_name": "c2", "column_name": "p2_id", "data_type": "integer", "is_nullable": "NO", "column_default": None},
+            ],
+            fk_rows=[
+                {
+                    "schema_name": "public",
+                    "table_name": "c1",
+                    "columns": ["p1_id"],
+                    "references_schema": "public",
+                    "references_table": "p1",
+                    "references_columns": ["id"],
+                },
+                {
+                    "schema_name": "public",
+                    "table_name": "c2",
+                    "columns": ["p2_id"],
+                    "references_schema": "public",
+                    "references_table": "p2",
+                    "references_columns": ["id"],
+                },
+            ],
+            idx_rows=[
+                {"schema_name": "public", "table_name": "p1", "index_name": "p1_pkey", "columns": ["id"], "is_unique": True},
+                {"schema_name": "public", "table_name": "p2", "index_name": "p2_pkey", "columns": ["id"], "is_unique": True},
+                {"schema_name": "public", "table_name": "c1", "index_name": "c1_pkey", "columns": ["id"], "is_unique": True},
+                {"schema_name": "public", "table_name": "c2", "index_name": "c2_pkey", "columns": ["id"], "is_unique": True},
+            ],
+        )
+        with patch("psycopg.connect", return_value=mock_conn):
+            index = introspect_db("postgresql://user:pass@localhost/db")
+
+        assert len(index.files) == 4
+
+        # c1 references only p1, not p2
+        c1_tables = index.files["public.c1.sql"]
+        assert len(c1_tables) == 1
+        c1 = c1_tables[0]
+        assert len(c1.foreign_keys) == 1
+        fk = c1.foreign_keys[0]
+        assert fk.columns == ["p1_id"]
+        assert fk.references_table == "p1"
+        assert fk.references_columns == ["id"]
+
+        # c2 references only p2, not p1
+        c2_tables = index.files["public.c2.sql"]
+        assert len(c2_tables) == 1
+        c2 = c2_tables[0]
+        assert len(c2.foreign_keys) == 1
+        fk = c2.foreign_keys[0]
+        assert fk.columns == ["p2_id"]
+        assert fk.references_table == "p2"
+        assert fk.references_columns == ["id"]
