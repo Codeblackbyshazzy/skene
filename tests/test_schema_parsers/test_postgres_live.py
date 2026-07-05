@@ -47,9 +47,7 @@ def _build_mock_conn(
 
     cursors = [
         _make_cursor([{"nspname": s} for s in schemas]),  # schema discovery
-        _make_cursor(
-            [{"schema_name": s, "table_name": t} for s, t in tables]
-        ),  # tables
+        _make_cursor([{"schema_name": s, "table_name": t} for s, t in tables]),  # tables
         _make_cursor(pk_rows),  # primary keys
         _make_cursor(col_rows),  # columns
         _make_cursor(fk_rows),  # foreign keys

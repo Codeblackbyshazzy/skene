@@ -10,11 +10,19 @@ or log line.
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 import psycopg
 from psycopg.rows import dict_row
+
+from skene.analyzers.schema_parsers.models import (
+    ColumnInfo,
+    ForeignKey,
+    IndexInfo,
+    SchemaIndex,
+    TableInfo,
+)
+from skene.output import debug
 
 
 def _pg_array_to_list(val: Any) -> list[str]:
@@ -30,14 +38,6 @@ def _pg_array_to_list(val: Any) -> list[str]:
     # Split on commas, strip quotes and whitespace
     return [item.strip().strip("'") for item in inner.split(",") if item.strip()]
 
-from skene.analyzers.schema_parsers.models import (
-    ColumnInfo,
-    ForeignKey,
-    IndexInfo,
-    SchemaIndex,
-    TableInfo,
-)
-from skene.output import debug
 
 # relkind filter: ordinary tables, partitioned tables, views, materialized views.
 # Injected directly into SQL (static string, never user input).
@@ -92,21 +92,18 @@ def introspect_db(db_url: str, *, connect_timeout: int = 10) -> SchemaIndex:
         """
         with conn.cursor() as cur:
             cur.execute(tables_query, (user_schemas,))
-            table_ids: list[tuple[str, str]] = [
-                (row["schema_name"], row["table_name"]) for row in cur.fetchall()
-            ]
+            table_ids: list[tuple[str, str]] = [(row["schema_name"], row["table_name"]) for row in cur.fetchall()]
 
         if not table_ids:
             return index
 
         # Extract flat lists for legacy ANY() filters
         table_names: list[str] = [t for _, t in table_ids]
-        schema_names: list[str] = [s for s, _ in table_ids]
 
         # --- 2. Collect all data in parallel-ish queries (single connection, sequential) ---
 
         # 2a. Primary keys per table
-        pk_query = f"""\
+        pk_query = """\
             SELECT n.nspname AS schema_name,
                    c.relname AS table_name,
                    array_agg(a.attname ORDER BY array_position(ix.indkey, a.attnum)) AS pk_columns
@@ -121,8 +118,7 @@ def introspect_db(db_url: str, *, connect_timeout: int = 10) -> SchemaIndex:
         with conn.cursor() as cur:
             cur.execute(pk_query, (table_names, user_schemas))
             pk_map: dict[tuple[str, str], list[str]] = {
-                (row["schema_name"], row["table_name"]): _pg_array_to_list(row["pk_columns"])
-                for row in cur.fetchall()
+                (row["schema_name"], row["table_name"]): _pg_array_to_list(row["pk_columns"]) for row in cur.fetchall()
             }
 
         # 2b. Columns per table
@@ -139,9 +135,7 @@ def introspect_db(db_url: str, *, connect_timeout: int = 10) -> SchemaIndex:
             # Group by (schema, table)
             cols_by_table: dict[tuple[str, str], list[dict[str, Any]]] = {}
             for row in cur.fetchall():
-                cols_by_table.setdefault(
-                    (row["schema_name"], row["table_name"]), []
-                ).append(row)
+                cols_by_table.setdefault((row["schema_name"], row["table_name"]), []).append(row)
 
         # 2c. Foreign keys
         fk_query = """\
