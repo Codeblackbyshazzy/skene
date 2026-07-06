@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from typing import Any
-
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -285,7 +284,9 @@ class TestIntrospectDb:
         # in its error message for a malformed or rejected DSN.
         full_dsn = "postgresql://testuser:supersecret@localhost/testdb"
         connect_error = psycopg.OperationalError(
-            f'connection to server at "localhost" failed: FATAL: password authentication failed for user "testuser"\nDETAIL: connection string: {full_dsn}'
+            f'connection to server at "localhost" failed: '
+            f'FATAL: password authentication failed for user "testuser"\n'
+            f"DETAIL: connection string: {full_dsn}"
         )
 
         with patch("psycopg.connect", side_effect=connect_error):
@@ -694,12 +695,54 @@ class TestDuplicateConstraintNames:
                 {"schema_name": "public", "table_name": "c2", "pk_columns": ["id"]},
             ],
             col_rows=[
-                {"schema_name": "public", "table_name": "p1", "column_name": "id", "data_type": "integer", "is_nullable": "NO", "column_default": None},
-                {"schema_name": "public", "table_name": "p2", "column_name": "id", "data_type": "integer", "is_nullable": "NO", "column_default": None},
-                {"schema_name": "public", "table_name": "c1", "column_name": "id", "data_type": "integer", "is_nullable": "NO", "column_default": None},
-                {"schema_name": "public", "table_name": "c1", "column_name": "p1_id", "data_type": "integer", "is_nullable": "NO", "column_default": None},
-                {"schema_name": "public", "table_name": "c2", "column_name": "id", "data_type": "integer", "is_nullable": "NO", "column_default": None},
-                {"schema_name": "public", "table_name": "c2", "column_name": "p2_id", "data_type": "integer", "is_nullable": "NO", "column_default": None},
+                {
+                    "schema_name": "public",
+                    "table_name": "p1",
+                    "column_name": "id",
+                    "data_type": "integer",
+                    "is_nullable": "NO",
+                    "column_default": None,
+                },
+                {
+                    "schema_name": "public",
+                    "table_name": "p2",
+                    "column_name": "id",
+                    "data_type": "integer",
+                    "is_nullable": "NO",
+                    "column_default": None,
+                },
+                {
+                    "schema_name": "public",
+                    "table_name": "c1",
+                    "column_name": "id",
+                    "data_type": "integer",
+                    "is_nullable": "NO",
+                    "column_default": None,
+                },
+                {
+                    "schema_name": "public",
+                    "table_name": "c1",
+                    "column_name": "p1_id",
+                    "data_type": "integer",
+                    "is_nullable": "NO",
+                    "column_default": None,
+                },
+                {
+                    "schema_name": "public",
+                    "table_name": "c2",
+                    "column_name": "id",
+                    "data_type": "integer",
+                    "is_nullable": "NO",
+                    "column_default": None,
+                },
+                {
+                    "schema_name": "public",
+                    "table_name": "c2",
+                    "column_name": "p2_id",
+                    "data_type": "integer",
+                    "is_nullable": "NO",
+                    "column_default": None,
+                },
             ],
             fk_rows=[
                 {
@@ -720,10 +763,34 @@ class TestDuplicateConstraintNames:
                 },
             ],
             idx_rows=[
-                {"schema_name": "public", "table_name": "p1", "index_name": "p1_pkey", "columns": ["id"], "is_unique": True},
-                {"schema_name": "public", "table_name": "p2", "index_name": "p2_pkey", "columns": ["id"], "is_unique": True},
-                {"schema_name": "public", "table_name": "c1", "index_name": "c1_pkey", "columns": ["id"], "is_unique": True},
-                {"schema_name": "public", "table_name": "c2", "index_name": "c2_pkey", "columns": ["id"], "is_unique": True},
+                {
+                    "schema_name": "public",
+                    "table_name": "p1",
+                    "index_name": "p1_pkey",
+                    "columns": ["id"],
+                    "is_unique": True,
+                },
+                {
+                    "schema_name": "public",
+                    "table_name": "p2",
+                    "index_name": "p2_pkey",
+                    "columns": ["id"],
+                    "is_unique": True,
+                },
+                {
+                    "schema_name": "public",
+                    "table_name": "c1",
+                    "index_name": "c1_pkey",
+                    "columns": ["id"],
+                    "is_unique": True,
+                },
+                {
+                    "schema_name": "public",
+                    "table_name": "c2",
+                    "index_name": "c2_pkey",
+                    "columns": ["id"],
+                    "is_unique": True,
+                },
             ],
         )
         with patch("psycopg.connect", return_value=mock_conn):
@@ -788,7 +855,7 @@ class TestLivePostgresLive:
                 "WHERE nspname NOT IN ('pg_catalog','information_schema','pg_toast') "
                 "AND nspname NOT LIKE 'pg_%' ORDER BY nspname"
             )
-            schemas = [r["nspname"] for r in cur.fetchall()]
+            [r["nspname"] for r in cur.fetchall()]
 
         from skene.analyzers.schema_parsers.postgres_live import introspect_db
 
