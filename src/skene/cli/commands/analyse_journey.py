@@ -218,7 +218,7 @@ def analyse_journey_cmd(
         status(f"Introspecting database: {db_display}")
         try:
             live_schema_index = introspect_db(db_url)
-        except Exception as e:  # noqa: BLE001 — never leak connection details
+        except Exception as e:  # noqa: BLE001 — message already sanitized by introspect_db
             error(f"Failed to introspect database: {e}")
             raise typer.Exit(1) from e
         status(f"Introspection complete: {sum(len(t) for t in live_schema_index.files.values())} tables found")
